@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✨ 概念画布</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <div id="ui-layer">
+        <div id="ui-top-bar">
+            <div id="ui-icon-box">✨</div> <!-- 居中的星星 -->
+            <div id="ui-controls">
+                <div id="ui-title">Concept Canvas</div>
+                <button id="btn-theme" title="切换深色/浅色模式">🌙</button>
+            </div>
+        </div>
+        <div id="ui-content">
+            <textarea id="input-text" placeholder="输入想法... (空格/逗号/换行分隔)"></textarea>
+            <button id="btn-add">✨ 生成节点 (Generate)</button>
+            <div class="btn-row">
+                <button class="secondary" id="btn-export">导出 JSON</button>
+                <button class="secondary" id="btn-import" onclick="document.getElementById('file-input').click()">导入
+                    JSON</button>
+                <input type="file" id="file-input" style="display:none" accept=".json">
+            </div>
+            <div class="help-text">
+                <div>🖱️ <b>中键 / 空格+拖拽</b> 平移</div>
+                <div>🖱️ <b>双击</b> 编辑 | <b>Ctrl+Click</b> 多选</div>
+                <div>⌨️ <span class="help-key">Ctrl</span>+<span class="help-key">G</span> 编组 | <span
+                        class="help-key">L</span> 连线</div>
+                <div>⌨️ <span class="help-key">Alt</span>+<span class="help-key">1</span>~<span
+                        class="help-key">5</span> 切换颜色</div>
+                <div>⌨️ <span class="help-key">Del</span> 删除 | <span class="help-key">Ctrl</span>+<span
+                        class="help-key">D</span> 复制</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <div id="world">
+            <svg id="connections-layer" class="connections"></svg>
+            <div id="groups-layer"></div>
+            <div id="nodes-layer"></div>
+        </div>
+        <div id="selection-box"></div>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+
+</html>

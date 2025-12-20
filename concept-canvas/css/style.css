@@ -1,0 +1,424 @@
+:root {
+    /* 🌞 Light Mode */
+    --bg-color: #f8f9fa;
+    --dot-color: #cbd5e1;
+
+    --ui-bg: rgba(255, 255, 255, 0.9);
+    /* 稍微提高不透明度以遮挡背景 */
+    --ui-border: rgba(255, 255, 255, 0.6);
+    --ui-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+    --ui-text: #334155;
+
+    --node-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    --node-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+    --select-color: #6366f1;
+    /* Indigo */
+    --group-bg: rgba(99, 102, 241, 0.05);
+    --group-border: #a5b4fc;
+    --link-color: #94a3b8;
+
+    /* 节点配色 (浅色模式) */
+    --c-white-bg: #ffffff;
+    --c-white-border: #e2e8f0;
+    --c-white-text: #1e293b;
+    --c-red-bg: #fee2e2;
+    --c-red-border: #fecaca;
+    --c-red-text: #991b1b;
+    --c-yellow-bg: #fef3c7;
+    --c-yellow-border: #fde68a;
+    --c-yellow-text: #92400e;
+    --c-green-bg: #d1fae5;
+    --c-green-border: #a7f3d0;
+    --c-green-text: #065f46;
+    --c-blue-bg: #e0e7ff;
+    --c-blue-border: #c7d2fe;
+    --c-blue-text: #3730a3;
+}
+
+/* 🌙 Dark Mode */
+[data-theme="dark"] {
+    --bg-color: #111827;
+    --dot-color: #374151;
+
+    --ui-bg: rgba(31, 41, 55, 0.9);
+    --ui-border: rgba(255, 255, 255, 0.1);
+    --ui-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    --ui-text: #e2e8f0;
+
+    --node-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    --node-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+
+    --select-color: #818cf8;
+    --group-bg: rgba(129, 140, 248, 0.1);
+    --group-border: #4f46e5;
+    --link-color: #64748b;
+
+    /* 节点配色 (深色模式) */
+    --c-white-bg: #1f2937;
+    --c-white-border: #374151;
+    --c-white-text: #f3f4f6;
+    --c-red-bg: #450a0a;
+    --c-red-border: #7f1d1d;
+    --c-red-text: #fecaca;
+    --c-yellow-bg: #451a03;
+    --c-yellow-border: #78350f;
+    --c-yellow-text: #fde68a;
+    --c-green-bg: #064e3b;
+    --c-green-border: #065f46;
+    --c-green-text: #a7f3d0;
+    --c-blue-bg: #1e1b4b;
+    --c-blue-border: #312e81;
+    --c-blue-text: #c7d2fe;
+}
+
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    background-image: radial-gradient(var(--dot-color) 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+    color: var(--ui-text);
+    user-select: none;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* --- UI Panel --- */
+#ui-layer {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    width: 44px;
+    height: 44px;
+    /* 默认正方形 */
+    border-radius: 12px;
+    background: var(--ui-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--ui-border);
+    box-shadow: var(--ui-shadow);
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    flex-direction: column;
+    color: var(--ui-text);
+}
+
+/* 悬停/聚焦时展开 */
+#ui-layer:hover,
+#ui-layer:focus-within {
+    width: 320px;
+    height: auto;
+    border-radius: 16px;
+}
+
+/* 顶部 Handle 区 - 布局优化：绝对居中图标 */
+#ui-top-bar {
+    height: 44px;
+    flex-shrink: 0;
+    /* 固定高度 */
+    display: flex;
+    align-items: center;
+    /* 关键：不使用 padding，手动控制子元素位置 */
+    position: relative;
+    cursor: default;
+}
+
+/* 图标容器：固定 44x44，绝对居中 */
+#ui-icon-box {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+/* 标题和开关：在展开前隐藏，展开后显示 */
+#ui-controls {
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+
+    /* 这里的 space-between 配合下面的 flex-grow 实现两端对齐 */
+    justify-content: space-between;
+
+    /* 修改这里：右侧留一点点空隙，让按钮不要贴边，也不要离太远 */
+    padding-right: 6px;
+
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+#ui-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-left: 25px;
+
+    /* 新增：让文字“撑开”中间区域，把按钮挤到最右边 */
+    flex-grow: 1;
+    text-align: center;
+    /* 或者 center，看您喜好 */
+}
+
+#btn-theme {
+    /* 核心修改：固定宽高，做成小方块 */
+    width: 32px;
+    height: 32px;
+
+    /* 让里面的 🌙/☀️ 绝对居中 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* 样式美化 */
+    cursor: pointer;
+    border: 1px solid transparent;
+    /* 预留边框位置避免抖动 */
+    background: transparent;
+    font-size: 16px;
+    border-radius: 8px;
+    /* 圆角矩形 */
+    transition: all 0.2s;
+    color: var(--ui-text);
+    /* 确保跟随字体颜色 */
+}
+
+/* 鼠标悬停时的效果：加个浅色背景 */
+#btn-theme:hover {
+    background: rgba(127, 127, 127, 0.1);
+    border-color: rgba(127, 127, 127, 0.2);
+}
+
+/* 展开时显示标题区 */
+#ui-layer:hover #ui-controls,
+#ui-layer:focus-within #ui-controls {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* 内容区 */
+#ui-content {
+    padding: 0 15px 15px 15px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+#ui-layer:hover #ui-content,
+#ui-layer:focus-within #ui-content {
+    opacity: 1;
+}
+
+textarea {
+    width: 100%;
+    height: 80px;
+    resize: none;
+    border: 1px solid var(--dot-color);
+    border-radius: 8px;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.1);
+    color: inherit;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+textarea:focus {
+    border-color: var(--select-color);
+}
+
+.btn-row {
+    display: flex;
+    gap: 10px;
+}
+
+button {
+    flex: 0.7;
+    padding: 10px;
+    cursor: pointer;
+    background: var(--select-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    transition: transform 0.1s, opacity 0.2s;
+}
+
+button:active {
+    transform: scale(0.96);
+}
+
+button:hover {
+    opacity: 0.9;
+}
+
+button.secondary {
+    background: transparent;
+    color: var(--ui-text);
+    border: 1px solid var(--dot-color);
+}
+
+button.secondary:hover {
+    background: rgba(127, 127, 127, 0.1);
+}
+
+.help-text {
+    font-size: 12px;
+    color: var(--ui-text);
+    opacity: 0.7;
+    line-height: 1.6;
+    padding-top: 5px;
+    border-top: 1px solid var(--dot-color);
+}
+
+.help-key {
+    display: inline-block;
+    background: rgba(127, 127, 127, 0.15);
+    padding: 0 4px;
+    border-radius: 4px;
+    font-family: monospace;
+    border: 1px solid rgba(127, 127, 127, 0.2);
+    font-size: 11px;
+}
+
+/* --- Canvas --- */
+#canvas-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+}
+
+#world {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+}
+
+/* --- Node Styling --- */
+.node {
+    position: absolute;
+    border: 1px solid transparent;
+    /* 默认边框由子类颜色控制 */
+    border-radius: 10px;
+    padding: 12px 18px;
+    min-width: 60px;
+    text-align: center;
+    box-shadow: var(--node-shadow);
+    font-size: 14px;
+    cursor: grab;
+    white-space: nowrap;
+    z-index: 10;
+    transition: box-shadow 0.2s, transform 0.1s;
+}
+
+.node:hover {
+    box-shadow: var(--node-shadow-hover);
+}
+
+/* 选中状态：使用 !important 强制覆盖颜色变体的边框 */
+.node.selected {
+    border: 2px solid var(--select-color) !important;
+    /* 加一层外发光增强对比度 */
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2), var(--node-shadow) !important;
+    z-index: 50;
+}
+
+.node.editing {
+    cursor: text;
+    border-color: var(--select-color) !important;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    user-select: text;
+    -webkit-user-select: text;
+}
+
+/* Color Variants */
+.node.c-white {
+    background: var(--c-white-bg);
+    border-color: var(--c-white-border);
+    color: var(--c-white-text);
+}
+
+.node.c-red {
+    background: var(--c-red-bg);
+    border-color: var(--c-red-border);
+    color: var(--c-red-text);
+}
+
+.node.c-yellow {
+    background: var(--c-yellow-bg);
+    border-color: var(--c-yellow-border);
+    color: var(--c-yellow-text);
+}
+
+.node.c-green {
+    background: var(--c-green-bg);
+    border-color: var(--c-green-border);
+    color: var(--c-green-text);
+}
+
+.node.c-blue {
+    background: var(--c-blue-bg);
+    border-color: var(--c-blue-border);
+    color: var(--c-blue-text);
+}
+
+.group {
+    position: absolute;
+    border: 2px dashed var(--group-border);
+    background: var(--group-bg);
+    border-radius: 16px;
+    z-index: 5;
+    pointer-events: all;
+    transition: background 0.2s;
+}
+
+.group.selected {
+    border-color: var(--select-color);
+    background: rgba(99, 102, 241, 0.15);
+}
+
+svg.connections {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: visible;
+    z-index: 1;
+    pointer-events: none;
+}
+
+line.link {
+    stroke: var(--link-color);
+    stroke-width: 2;
+    opacity: 0.6;
+}
+
+#selection-box {
+    position: absolute;
+    border: 1px solid var(--select-color);
+    background: rgba(99, 102, 241, 0.15);
+    display: none;
+    z-index: 999;
+    border-radius: 4px;
+    pointer-events: none;
+}
