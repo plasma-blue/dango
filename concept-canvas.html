@@ -4,15 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>轻量级概念画布 (Concept Canvas) - v3</title>
+    <title>✨ 概念画布</title>
     <style>
-        /* --- 变量定义：支持日/夜模式 --- */
+        /* --- 变量定义 --- */
         :root {
-            /* 🌞 Light Mode (默认) */
+            /* 🌞 Light Mode */
             --bg-color: #f8f9fa;
             --dot-color: #cbd5e1;
 
-            --ui-bg: rgba(255, 255, 255, 0.85);
+            --ui-bg: rgba(255, 255, 255, 0.9);
+            /* 稍微提高不透明度以遮挡背景 */
             --ui-border: rgba(255, 255, 255, 0.6);
             --ui-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
             --ui-text: #334155;
@@ -21,6 +22,7 @@
             --node-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 
             --select-color: #6366f1;
+            /* Indigo */
             --group-bg: rgba(99, 102, 241, 0.05);
             --group-border: #a5b4fc;
             --link-color: #94a3b8;
@@ -48,7 +50,7 @@
             --bg-color: #111827;
             --dot-color: #374151;
 
-            --ui-bg: rgba(31, 41, 55, 0.85);
+            --ui-bg: rgba(31, 41, 55, 0.9);
             --ui-border: rgba(255, 255, 255, 0.1);
             --ui-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
             --ui-text: #e2e8f0;
@@ -61,7 +63,7 @@
             --group-border: #4f46e5;
             --link-color: #64748b;
 
-            /* 节点配色 (深色模式 - 降低亮度，提高文字对比度) */
+            /* 节点配色 (深色模式) */
             --c-white-bg: #1f2937;
             --c-white-border: #374151;
             --c-white-text: #f3f4f6;
@@ -92,7 +94,6 @@
             background-size: 24px 24px;
             color: var(--ui-text);
             user-select: none;
-            /* 防止拖拽时选中背景文字 */
             transition: background-color 0.3s, color 0.3s;
         }
 
@@ -104,7 +105,7 @@
             z-index: 1000;
             width: 44px;
             height: 44px;
-            /* 小方块 */
+            /* 默认正方形 */
             border-radius: 12px;
             background: var(--ui-bg);
             backdrop-filter: blur(12px);
@@ -118,6 +119,7 @@
             color: var(--ui-text);
         }
 
+        /* 悬停/聚焦时展开 */
         #ui-layer:hover,
         #ui-layer:focus-within {
             width: 320px;
@@ -125,47 +127,67 @@
             border-radius: 16px;
         }
 
-        /* 顶部 Handle 区 */
+        /* 顶部 Handle 区 - 布局优化：绝对居中图标 */
         #ui-top-bar {
-            min-height: 44px;
+            height: 44px;
+            flex-shrink: 0;
+            /* 固定高度 */
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 0 10px;
+            /* 关键：不使用 padding，手动控制子元素位置 */
+            position: relative;
             cursor: default;
         }
 
-        #ui-icon {
-            font-size: 24px;
-            width: 24px;
-            text-align: center;
+        /* 图标容器：固定 44x44，绝对居中 */
+        #ui-icon-box {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
         }
 
-        /* 🧠 emoji */
-        #ui-title {
+        /* 标题和开关：在展开前隐藏，展开后显示 */
+        #ui-controls {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+            justify-content: space-between;
+            padding-right: 15px;
             opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
             white-space: nowrap;
+            overflow: hidden;
+        }
+
+        #ui-title {
             font-weight: 600;
             font-size: 14px;
-            margin-left: 10px;
-            flex-grow: 1;
-            transition: opacity 0.2s;
+            margin-left: 5px;
         }
 
         #btn-theme {
-            opacity: 0;
             cursor: pointer;
             border: none;
             background: none;
             font-size: 18px;
-            transition: opacity 0.2s;
+            padding: 5px;
+            border-radius: 4px;
         }
 
-        #ui-layer:hover #ui-title,
-        #ui-layer:hover #btn-theme,
-        #ui-layer:focus-within #ui-title,
-        #ui-layer:focus-within #btn-theme {
+        #btn-theme:hover {
+            background: rgba(127, 127, 127, 0.1);
+        }
+
+        /* 展开时显示标题区 */
+        #ui-layer:hover #ui-controls,
+        #ui-layer:focus-within #ui-controls {
             opacity: 1;
+            pointer-events: auto;
         }
 
         /* 内容区 */
@@ -279,6 +301,7 @@
         .node {
             position: absolute;
             border: 1px solid transparent;
+            /* 默认边框由子类颜色控制 */
             border-radius: 10px;
             padding: 12px 18px;
             min-width: 60px;
@@ -295,22 +318,24 @@
             box-shadow: var(--node-shadow-hover);
         }
 
+        /* 选中状态：使用 !important 强制覆盖颜色变体的边框 */
         .node.selected {
-            border: 2px solid var(--select-color);
-            z-index: 20;
+            border: 2px solid var(--select-color) !important;
+            /* 加一层外发光增强对比度 */
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2), var(--node-shadow) !important;
+            z-index: 50;
         }
 
-        /* 关键修复：编辑时允许选中文本 */
         .node.editing {
             cursor: text;
-            border-color: var(--select-color);
+            border-color: var(--select-color) !important;
             outline: none;
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
             user-select: text;
             -webkit-user-select: text;
         }
 
-        /* Color Variants using Variables */
+        /* Color Variants */
         .node.c-white {
             background: var(--c-white-bg);
             border-color: var(--c-white-border);
@@ -387,17 +412,19 @@
 
     <div id="ui-layer">
         <div id="ui-top-bar">
-            <div id="ui-icon">🧠</div> <!-- Emoji Icon -->
-            <div id="ui-title">Concept Canvas</div>
-            <button id="btn-theme" title="切换深色/浅色模式">🌙</button>
+            <div id="ui-icon-box">✨</div> <!-- 居中的星星 -->
+            <div id="ui-controls">
+                <div id="ui-title">Concept Canvas</div>
+                <button id="btn-theme" title="切换深色/浅色模式">🌙</button>
+            </div>
         </div>
         <div id="ui-content">
             <textarea id="input-text" placeholder="输入想法... (空格/逗号/换行分隔)"></textarea>
             <button id="btn-add">✨ 生成节点 (Generate)</button>
             <div class="btn-row">
-                <button class="secondary" id="btn-export">导出</button>
-                <button class="secondary" id="btn-import"
-                    onclick="document.getElementById('file-input').click()">导入</button>
+                <button class="secondary" id="btn-export">导出 JSON</button>
+                <button class="secondary" id="btn-import" onclick="document.getElementById('file-input').click()">导入
+                    JSON</button>
                 <input type="file" id="file-input" style="display:none" accept=".json">
             </div>
             <div class="help-text">
@@ -538,9 +565,7 @@
         const keys = {};
 
         els.container.addEventListener('mousedown', e => {
-            // 处于编辑模式时，点击内部不触发拖拽
             if (e.target.isContentEditable) return;
-
             if (e.target.closest('.node') && e.detail === 2) return;
             if (e.button === 1 || (e.button === 0 && keys.Space)) {
                 mode = 'pan'; dragStart = { x: e.clientX, y: e.clientY, viewX: state.view.x, viewY: state.view.y };
@@ -625,7 +650,6 @@
             render();
         }, { passive: false });
 
-        // Double Click Edit
         els.container.addEventListener('dblclick', e => {
             const nodeEl = e.target.closest('.node');
             if (nodeEl) {
@@ -634,10 +658,8 @@
                     nodeEl.contentEditable = true;
                     nodeEl.classList.add('editing');
                     nodeEl.focus();
-                    // 初始选中全部，但允许后续点击修改光标位置
                     const range = document.createRange(); range.selectNodeContents(nodeEl);
                     const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
-
                     const finishEdit = () => {
                         nodeEl.contentEditable = false; nodeEl.classList.remove('editing');
                         node.text = nodeEl.innerText;
@@ -647,13 +669,12 @@
                     nodeEl.onblur = finishEdit;
                     nodeEl.onkeydown = (ev) => {
                         if (ev.key === 'Enter') { ev.preventDefault(); nodeEl.blur(); }
-                        ev.stopPropagation(); // 阻止按键冒泡触发快捷键
+                        ev.stopPropagation();
                     };
                 }
             }
         });
 
-        // Keys
         window.addEventListener('keydown', e => {
             if (e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
             keys[e.code] = true;
@@ -665,8 +686,6 @@
             if (e.code === 'Delete') deleteSelection();
             if (e.ctrlKey && e.code === 'KeyD') { e.preventDefault(); duplicateSelection(); }
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) { e.preventDefault(); nudgeSelection(e.code); }
-
-            // Alt + 1~5 for Colors
             if (e.altKey && ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].includes(e.code)) {
                 e.preventDefault();
                 colorSelection(CONFIG.colors[parseInt(e.key) - 1]);
@@ -772,10 +791,22 @@
         }
         function colorSelection(colorClass) { state.nodes.forEach(n => { if (state.selection.has(n.id)) n.color = colorClass; }); render(); }
 
+        // Persistence with Timestamp
+        function getTimestamp() {
+            const now = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+        }
+
         document.getElementById('btn-export').onclick = () => {
-            const blob = new Blob([JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links }, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob); const a = document.createElement('a');
-            a.href = url; a.download = 'canvas-v3.json'; a.click(); URL.revokeObjectURL(url);
+            const data = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links }, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `concept-canvas_${getTimestamp()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
         };
         document.getElementById('file-input').onchange = (e) => {
             const file = e.target.files[0]; if (!file) return;
