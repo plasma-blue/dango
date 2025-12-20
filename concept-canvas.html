@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>轻量级概念画布 (Concept Canvas)</title>
+    <style>
+        :root {
+            --bg-color: #f4f5f7;
+            --grid-color: #e0e0e0;
+            --node-bg: #ffffff;
+            --node-border: #d1d5db;
+            --node-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --select-color: #3b82f6;
+            --group-bg: rgba(229, 231, 235, 0.5);
+            --group-border: #9ca3af;
+            --link-color: #9ca3af;
+            --text-color: #1f2937;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg-color);
+            user-select: none;
+        }
+
+        /* UI Layer */
+        #ui-layer {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            backdrop-filter: blur(5px);
+        }
+
+        textarea {
+            width: 100%;
+            height: 80px;
+            resize: vertical;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 5px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 8px;
+            cursor: pointer;
+            background: var(--select-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button.secondary {
+            background: #6b7280;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+
+        /* Canvas World */
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            overflow: hidden;
+            cursor: default;
+        }
+
+        #world {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            width: 0;
+            height: 0;
+            /* Logical origin */
+        }
+
+        /* Elements */
+        .node {
+            position: absolute;
+            background: var(--node-bg);
+            border: 1px solid var(--node-border);
+            border-radius: 6px;
+            padding: 10px 15px;
+            min-width: 60px;
+            text-align: center;
+            box-shadow: var(--node-shadow);
+            color: var(--text-color);
+            font-size: 14px;
+            cursor: grab;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        .node.selected {
+            border: 2px solid var(--select-color);
+        }
+
+        .node.editing {
+            cursor: text;
+            border-color: var(--select-color);
+            outline: none;
+        }
+
+        /* Node Colors */
+        .node.c-white {
+            background: #ffffff;
+        }
+
+        .node.c-red {
+            background: #fee2e2;
+        }
+
+        .node.c-yellow {
+            background: #fef3c7;
+        }
+
+        .node.c-green {
+            background: #d1fae5;
+        }
+
+        .node.c-blue {
+            background: #dbeafe;
+        }
+
+        .group {
+            position: absolute;
+            border: 2px dashed var(--group-border);
+            background: var(--group-bg);
+            border-radius: 8px;
+            z-index: 5;
+            pointer-events: all;
+            /* Allow selection */
+        }
+
+        .group.selected {
+            border-color: var(--select-color);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        svg.connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            overflow: visible;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        line.link {
+            stroke: var(--link-color);
+            stroke-width: 2;
+        }
+
+        /* Selection Box */
+        #selection-box {
+            position: absolute;
+            border: 1px solid var(--select-color);
+            background: rgba(59, 130, 246, 0.2);
+            display: none;
+            z-index: 999;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="ui-layer">
+        <textarea id="input-text" placeholder="在此输入文本，用空格、逗号或换行分隔..."></textarea>
+        <button id="btn-add">添加至画布</button>
+        <div class="btn-row">
+            <button class="secondary" id="btn-export">导出 JSON</button>
+            <button class="secondary" id="btn-import" onclick="document.getElementById('file-input').click()">导入
+                JSON</button>
+            <input type="file" id="file-input" style="display:none" accept=".json">
+        </div>
+        <div class="help-text">
+            <b>快捷键指南:</b><br>
+            中键/空格+拖拽: 平移 | 滚轮: 缩放<br>
+            双击: 编辑文本 | Ctrl+Click: 多选<br>
+            Ctrl+G: 编组 | Ctrl+Shift+G: 解散<br>
+            Ctrl+L: 连接/断开 (选中2个)<br>
+            Ctrl+D: 复制节点 | Del: 删除<br>
+            数字1-5: 更改节点颜色
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <div id="world">
+            <svg id="connections-layer" class="connections"></svg>
+            <div id="groups-layer"></div>
+            <div id="nodes-layer"></div>
+        </div>
+        <div id="selection-box"></div>
+    </div>
+
+    <script>
+        /**
+         * 核心逻辑实现
+         */
+
+        // --- 数据结构 ---
+        const state = {
+            nodes: [],      // { id, text, x, y, w, h, color }
+            groups: [],     // { id, x, y, w, h, memberIds[] }
+            links: [],      // { id, sourceId, targetId }
+            view: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 },
+            selection: new Set(), // 存储选中的 ID (node 或 group)
+            clipboard: []
+        };
+
+        // --- 配置与工具 ---
+        const CONFIG = {
+            colors: ['c-white', 'c-red', 'c-yellow', 'c-green', 'c-blue'],
+            defaultNodeW: 100, // 估算用，实际会自适应
+            defaultNodeH: 40
+        };
+
+        const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+        // --- DOM 引用 ---
+        const els = {
+            container: document.getElementById('canvas-container'),
+            world: document.getElementById('world'),
+            nodesLayer: document.getElementById('nodes-layer'),
+            groupsLayer: document.getElementById('groups-layer'),
+            connectionsLayer: document.getElementById('connections-layer'),
+            input: document.getElementById('input-text'),
+            selectBox: document.getElementById('selection-box')
+        };
+
+        // --- 渲染系统 ---
+        function render() {
+            // 1. 应用视图变换
+            els.world.style.transform = `translate(${state.view.x}px, ${state.view.y}px) scale(${state.view.scale})`;
+
+            // 2. 渲染连接 (SVG)
+            // 简单 Diff：清空重绘（考虑到连接线数量通常不多，且位置频繁变动）
+            els.connectionsLayer.innerHTML = '';
+            state.links.forEach(l => {
+                const n1 = state.nodes.find(n => n.id === l.sourceId);
+                const n2 = state.nodes.find(n => n.id === l.targetId);
+                if (n1 && n2) {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    const c1 = getNodeCenter(n1);
+                    const c2 = getNodeCenter(n2);
+                    line.setAttribute('x1', c1.x); line.setAttribute('y1', c1.y);
+                    line.setAttribute('x2', c2.x); line.setAttribute('y2', c2.y);
+                    line.classList.add('link');
+                    els.connectionsLayer.appendChild(line);
+                }
+            });
+
+            // 3. 渲染分组
+            syncDomElements(state.groups, els.groupsLayer, 'group', renderGroup);
+
+            // 4. 渲染节点
+            syncDomElements(state.nodes, els.nodesLayer, 'node', renderNode);
+        }
+
+        // 通用的 DOM 同步函数 (React-like diffing is too heavy, simple ID matching)
+        function syncDomElements(dataArray, parent, className, renderFn) {
+            const existing = new Map();
+            Array.from(parent.children).forEach(el => existing.set(el.dataset.id, el));
+
+            const activeIds = new Set();
+
+            dataArray.forEach(item => {
+                activeIds.add(item.id);
+                let el = existing.get(item.id);
+                if (!el) {
+                    el = document.createElement('div');
+                    el.className = className;
+                    el.dataset.id = item.id;
+                    parent.appendChild(el);
+                }
+                renderFn(el, item);
+            });
+
+            // 清理删除的元素
+            existing.forEach((el, id) => {
+                if (!activeIds.has(id)) el.remove();
+            });
+        }
+
+        function renderNode(el, node) {
+            el.style.transform = `translate(${node.x}px, ${node.y}px)`;
+            // 只有当内容变化时才更新 innerText，避免光标丢失（虽然编辑时有专门逻辑）
+            if (el.innerText !== node.text && !el.isContentEditable) el.innerText = node.text;
+
+            // 样式更新
+            el.className = `node ${node.color || 'c-white'} ${state.selection.has(node.id) ? 'selected' : ''}`;
+
+            // 记录尺寸供计算使用 (Post-render update)
+            if (!node.w || !node.h) {
+                // 下一帧获取真实尺寸
+                requestAnimationFrame(() => {
+                    node.w = el.offsetWidth;
+                    node.h = el.offsetHeight;
+                });
+            }
+        }
+
+        function renderGroup(el, group) {
+            el.style.transform = `translate(${group.x}px, ${group.y}px)`;
+            el.style.width = `${group.w}px`;
+            el.style.height = `${group.h}px`;
+            el.className = `group ${state.selection.has(group.id) ? 'selected' : ''}`;
+        }
+
+        function getNodeCenter(n) {
+            return { x: n.x + (n.w || 0) / 2, y: n.y + (n.h || 0) / 2 };
+        }
+
+        // --- 交互逻辑 ---
+
+        // 输入区逻辑
+        document.getElementById('btn-add').onclick = () => {
+            const text = els.input.value;
+            if (!text.trim()) return;
+
+            // 分割文本
+            const parts = text.split(/[\s,\n]+/).filter(t => t.trim().length > 0);
+            const existingTexts = new Set(state.nodes.map(n => n.text));
+
+            let addedCount = 0;
+            // 网格布局初始位置
+            const startX = -state.view.x / state.view.scale + window.innerWidth / (2 * state.view.scale);
+            const startY = -state.view.y / state.view.scale + window.innerHeight / (2 * state.view.scale);
+
+            parts.forEach((str, idx) => {
+                if (!existingTexts.has(str)) {
+                    state.nodes.push({
+                        id: uid(),
+                        text: str,
+                        x: startX + (idx % 5) * 120,
+                        y: startY + Math.floor(idx / 5) * 60,
+                        color: 'c-white'
+                    });
+                    addedCount++;
+                }
+            });
+
+            els.input.value = '';
+            render();
+        };
+
+        // 画布导航 (Pan & Zoom)
+        let dragStart = null;
+        let mode = null; // 'pan', 'move', 'box', 'edit'
+
+        els.container.addEventListener('mousedown', e => {
+            if (e.target.closest('.node') && e.detail === 2) return; // 双击交由 dblclick 处理
+
+            // 中键或空格+左键 = 平移
+            if (e.button === 1 || (e.button === 0 && keys.Space)) {
+                mode = 'pan';
+                dragStart = { x: e.clientX, y: e.clientY, viewX: state.view.x, viewY: state.view.y };
+                return;
+            }
+
+            // 左键点击
+            if (e.button === 0) {
+                const nodeEl = e.target.closest('.node');
+                const groupEl = e.target.closest('.group');
+
+                // 坐标转换
+                const worldPos = screenToWorld(e.clientX, e.clientY);
+
+                if (nodeEl) {
+                    handleSelection(nodeEl.dataset.id, e.ctrlKey || e.shiftKey);
+                    mode = 'move';
+                    dragStart = { x: worldPos.x, y: worldPos.y, initialPos: getSelectionPositions() };
+                } else if (groupEl) {
+                    handleSelection(groupEl.dataset.id, e.ctrlKey || e.shiftKey);
+                    mode = 'move';
+                    dragStart = { x: worldPos.x, y: worldPos.y, initialPos: getSelectionPositions() };
+                } else {
+                    // 点击空白处
+                    if (!e.ctrlKey && !e.shiftKey) state.selection.clear();
+                    mode = 'box';
+                    dragStart = { x: e.clientX, y: e.clientY }; // 屏幕坐标用于绘制选框
+                    els.selectBox.style.display = 'block';
+                    updateSelectBox(e.clientX, e.clientY, e.clientX, e.clientY);
+                    render();
+                }
+            }
+        });
+
+        els.container.addEventListener('mousemove', e => {
+            if (!mode) return;
+
+            if (mode === 'pan') {
+                const dx = e.clientX - dragStart.x;
+                const dy = e.clientY - dragStart.y;
+                state.view.x = dragStart.viewX + dx;
+                state.view.y = dragStart.viewY + dy;
+                render();
+            } else if (mode === 'move') {
+                const worldPos = screenToWorld(e.clientX, e.clientY);
+                const dx = worldPos.x - dragStart.x;
+                const dy = worldPos.y - dragStart.y;
+
+                // 移动所有选中的元素
+                state.selection.forEach(id => {
+                    const init = dragStart.initialPos[id];
+                    if (init) {
+                        const item = findItem(id);
+                        if (item) {
+                            item.x = init.x + dx;
+                            item.y = init.y + dy;
+
+                            // 如果移动的是组，更新组成员
+                            if (init.type === 'group') {
+                                const group = item;
+                                group.memberIds.forEach(mid => {
+                                    const member = state.nodes.find(n => n.id === mid);
+                                    if (member && dragStart.initialPos[mid]) {
+                                        // 成员也在选中列表中，由上面的逻辑处理，避免双重移动
+                                    } else if (member) {
+                                        // 成员未选中，随组移动
+                                        const mInit = dragStart.initialPos[`member_${mid}`];
+                                        if (mInit) {
+                                            member.x = mInit.x + dx;
+                                            member.y = mInit.y + dy;
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    }
+                });
+                render();
+            } else if (mode === 'box') {
+                updateSelectBox(dragStart.x, dragStart.y, e.clientX, e.clientY);
+            }
+        });
+
+        els.container.addEventListener('mouseup', e => {
+            if (mode === 'box') {
+                // 计算框选
+                const rect = getStandardRect(dragStart.x, dragStart.y, e.clientX, e.clientY);
+                // 转换 rect 到世界坐标
+                const worldRect = {
+                    x: (rect.x - state.view.x) / state.view.scale,
+                    y: (rect.y - state.view.y) / state.view.scale,
+                    w: rect.w / state.view.scale,
+                    h: rect.h / state.view.scale
+                };
+
+                // 查找相交元素
+                [...state.nodes, ...state.groups].forEach(item => {
+                    if (isIntersect(worldRect, item)) {
+                        state.selection.add(item.id);
+                    }
+                });
+                els.selectBox.style.display = 'none';
+                render();
+            }
+            mode = null;
+            dragStart = null;
+        });
+
+        els.container.addEventListener('wheel', e => {
+            e.preventDefault();
+            const zoomIntensity = 0.1;
+            const direction = e.deltaY > 0 ? -1 : 1;
+            const factor = 1 + (direction * zoomIntensity);
+
+            const mouseX = e.clientX;
+            const mouseY = e.clientY;
+
+            // Zoom math: world point under mouse remains stable
+            const worldX = (mouseX - state.view.x) / state.view.scale;
+            const worldY = (mouseY - state.view.y) / state.view.scale;
+
+            state.view.scale *= factor;
+            // Limit scale
+            state.view.scale = Math.max(0.1, Math.min(5, state.view.scale));
+
+            state.view.x = mouseX - worldX * state.view.scale;
+            state.view.y = mouseY - worldY * state.view.scale;
+
+            render();
+        }, { passive: false });
+
+        // 双击编辑
+        els.container.addEventListener('dblclick', e => {
+            const nodeEl = e.target.closest('.node');
+            if (nodeEl) {
+                const node = state.nodes.find(n => n.id === nodeEl.dataset.id);
+                if (node) {
+                    nodeEl.contentEditable = true;
+                    nodeEl.classList.add('editing');
+                    nodeEl.focus();
+
+                    // 全选文本
+                    const range = document.createRange();
+                    range.selectNodeContents(nodeEl);
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+
+                    const finishEdit = () => {
+                        nodeEl.contentEditable = false;
+                        nodeEl.classList.remove('editing');
+                        node.text = nodeEl.innerText;
+                        // 更新尺寸
+                        node.w = nodeEl.offsetWidth;
+                        node.h = nodeEl.offsetHeight;
+                        render();
+                    };
+
+                    nodeEl.onblur = finishEdit;
+                    nodeEl.onkeydown = (ev) => {
+                        if (ev.key === 'Enter') {
+                            ev.preventDefault();
+                            nodeEl.blur();
+                        }
+                    };
+                }
+            }
+        });
+
+        // --- 键盘快捷键 ---
+        const keys = {};
+
+        window.addEventListener('keydown', e => {
+            if (e.target.tagName === 'TEXTAREA' || (e.target.isContentEditable)) return; // 输入时不触发
+
+            keys[e.code] = true;
+
+            if (e.code === 'Space') e.preventDefault(); // 防止滚动
+
+            // Ctrl+G: Group
+            if (e.ctrlKey && e.code === 'KeyG' && !e.shiftKey) {
+                e.preventDefault();
+                createGroup();
+            }
+            // Ctrl+Shift+G: Ungroup
+            if (e.ctrlKey && e.shiftKey && e.code === 'KeyG') {
+                e.preventDefault();
+                dissolveGroup();
+            }
+            // Ctrl+L: Link
+            if (e.ctrlKey && e.code === 'KeyL') {
+                e.preventDefault();
+                toggleLink();
+            }
+            // Delete
+            if (e.code === 'Delete') {
+                deleteSelection();
+            }
+            // Ctrl+D: Duplicate (Origin Copy)
+            if (e.ctrlKey && e.code === 'KeyD') {
+                e.preventDefault();
+                duplicateSelection();
+            }
+            // Arrow Keys: Nudge
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                e.preventDefault();
+                nudgeSelection(e.code);
+            }
+            // Colors 1-5
+            if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].includes(e.code)) {
+                colorSelection(CONFIG.colors[parseInt(e.key) - 1]);
+            }
+        });
+
+        window.addEventListener('keyup', e => {
+            keys[e.code] = false;
+        });
+
+        // --- 功能函数 ---
+
+        function screenToWorld(sx, sy) {
+            return {
+                x: (sx - state.view.x) / state.view.scale,
+                y: (sy - state.view.y) / state.view.scale
+            };
+        }
+
+        function handleSelection(id, multi) {
+            if (!multi) {
+                if (!state.selection.has(id)) {
+                    state.selection.clear();
+                    state.selection.add(id);
+                }
+            } else {
+                if (state.selection.has(id)) state.selection.delete(id);
+                else state.selection.add(id);
+            }
+            render();
+        }
+
+        function getSelectionPositions() {
+            const pos = {};
+            state.selection.forEach(id => {
+                const item = findItem(id);
+                if (item) {
+                    pos[id] = { x: item.x, y: item.y, type: item.text ? 'node' : 'group' };
+                    // 如果是组，记录其成员的初始位置
+                    if (!item.text && item.memberIds) {
+                        item.memberIds.forEach(mid => {
+                            const m = state.nodes.find(n => n.id === mid);
+                            if (m) pos[`member_${mid}`] = { x: m.x, y: m.y };
+                        });
+                    }
+                }
+            });
+            return pos;
+        }
+
+        function findItem(id) {
+            return state.nodes.find(n => n.id === id) || state.groups.find(g => g.id === id);
+        }
+
+        function updateSelectBox(x1, y1, x2, y2) {
+            const r = getStandardRect(x1, y1, x2, y2);
+            els.selectBox.style.left = r.x + 'px';
+            els.selectBox.style.top = r.y + 'px';
+            els.selectBox.style.width = r.w + 'px';
+            els.selectBox.style.height = r.h + 'px';
+        }
+
+        function getStandardRect(x1, y1, x2, y2) {
+            return {
+                x: Math.min(x1, x2), y: Math.min(y1, y2),
+                w: Math.abs(x1 - x2), h: Math.abs(y1 - y2)
+            };
+        }
+
+        function isIntersect(r1, r2) {
+            // r2 might be a node or group obj
+            const r2w = r2.w || CONFIG.defaultNodeW;
+            const r2h = r2.h || CONFIG.defaultNodeH;
+            return !(r2.x > r1.x + r1.w ||
+                r2.x + r2w < r1.x ||
+                r2.y > r1.y + r1.h ||
+                r2.y + r2h < r1.y);
+        }
+
+        function createGroup() {
+            // 找出选中的所有节点
+            const selectedNodes = state.nodes.filter(n => state.selection.has(n.id));
+            if (selectedNodes.length === 0) return;
+
+            // 计算包围盒
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            selectedNodes.forEach(n => {
+                minX = Math.min(minX, n.x);
+                minY = Math.min(minY, n.y);
+                maxX = Math.max(maxX, n.x + (n.w || 0));
+                maxY = Math.max(maxY, n.y + (n.h || 0));
+            });
+
+            const padding = 20;
+            const group = {
+                id: uid(),
+                x: minX - padding,
+                y: minY - padding,
+                w: maxX - minX + padding * 2,
+                h: maxY - minY + padding * 2,
+                memberIds: selectedNodes.map(n => n.id)
+            };
+
+            state.groups.push(group);
+
+            // 选中新组
+            state.selection.clear();
+            state.selection.add(group.id);
+            render();
+        }
+
+        function dissolveGroup() {
+            const toRemove = [];
+            state.selection.forEach(id => {
+                const idx = state.groups.findIndex(g => g.id === id);
+                if (idx !== -1) toRemove.push(idx);
+            });
+
+            // 从后往前删
+            toRemove.sort((a, b) => b - a).forEach(idx => state.groups.splice(idx, 1));
+            if (toRemove.length > 0) {
+                state.selection.clear();
+                render();
+            }
+        }
+
+        function toggleLink() {
+            const sel = Array.from(state.selection);
+            // 必须恰好选中两个节点
+            const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter(n => n);
+            if (nodes.length !== 2) return;
+
+            const [n1, n2] = nodes;
+            const existingIdx = state.links.findIndex(l =>
+                (l.sourceId === n1.id && l.targetId === n2.id) ||
+                (l.sourceId === n2.id && l.targetId === n1.id)
+            );
+
+            if (existingIdx !== -1) {
+                state.links.splice(existingIdx, 1);
+            } else {
+                state.links.push({ id: uid(), sourceId: n1.id, targetId: n2.id });
+            }
+            render();
+        }
+
+        function deleteSelection() {
+            const sel = state.selection;
+            state.nodes = state.nodes.filter(n => !sel.has(n.id));
+            state.groups = state.groups.filter(g => !sel.has(g.id));
+            // 清理连接
+            state.links = state.links.filter(l => !sel.has(l.sourceId) && !sel.has(l.targetId));
+
+            // 如果删除了节点，也要从所有组中移除该成员
+            state.groups.forEach(g => {
+                g.memberIds = g.memberIds.filter(mid => state.nodes.find(n => n.id === mid));
+            });
+
+            state.selection.clear();
+            render();
+        }
+
+        function duplicateSelection() {
+            const newSelection = new Set();
+            const mapping = {}; // oldId -> newId
+
+            // 复制节点
+            state.nodes.forEach(n => {
+                if (state.selection.has(n.id)) {
+                    const newNode = { ...n, id: uid(), x: n.x + 20, y: n.y + 20 };
+                    state.nodes.push(newNode);
+                    newSelection.add(newNode.id);
+                    mapping[n.id] = newNode.id;
+                }
+            });
+
+            // 复制组 (只有当组本身被选中时)
+            state.groups.forEach(g => {
+                if (state.selection.has(g.id)) {
+                    const newGroup = { ...g, id: uid(), x: g.x + 20, y: g.y + 20 };
+                    // 尝试映射成员
+                    newGroup.memberIds = g.memberIds.map(mid => mapping[mid] || mid);
+                    state.groups.push(newGroup);
+                    newSelection.add(newGroup.id);
+                }
+            });
+
+            state.selection = newSelection;
+            render();
+        }
+
+        function nudgeSelection(key) {
+            const step = 10;
+            let dx = 0, dy = 0;
+            if (key === 'ArrowUp') dy = -step;
+            if (key === 'ArrowDown') dy = step;
+            if (key === 'ArrowLeft') dx = -step;
+            if (key === 'ArrowRight') dx = step;
+
+            state.selection.forEach(id => {
+                const item = findItem(id);
+                if (item) {
+                    item.x += dx;
+                    item.y += dy;
+                    // 如果是组，移动成员
+                    if (!item.text && item.memberIds) {
+                        item.memberIds.forEach(mid => {
+                            const m = state.nodes.find(n => n.id === mid);
+                            if (m) { m.x += dx; m.y += dy; }
+                        });
+                    }
+                }
+            });
+            render();
+        }
+
+        function colorSelection(colorClass) {
+            state.nodes.forEach(n => {
+                if (state.selection.has(n.id)) {
+                    n.color = colorClass;
+                }
+            });
+            render();
+        }
+
+        // --- 持久化 ---
+
+        document.getElementById('btn-export').onclick = () => {
+            const data = JSON.stringify({
+                nodes: state.nodes,
+                groups: state.groups,
+                links: state.links
+            }, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'canvas-data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        document.getElementById('file-input').onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    state.nodes = data.nodes || [];
+                    state.groups = data.groups || [];
+                    state.links = data.links || [];
+                    state.selection.clear();
+                    render();
+                } catch (err) {
+                    alert('文件格式错误');
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = ''; // reset
+        };
+
+        // 初始化
+        render();
+
+    </script>
+</body>
+
+</html>
