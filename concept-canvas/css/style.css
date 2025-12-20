@@ -3,10 +3,15 @@
     --bg-color: #f8f9fa;
     --dot-color: #cbd5e1;
 
-    --ui-bg: rgba(255, 255, 255, 0.9);
-    --ui-border: rgba(255, 255, 255, 0.6);
-    --ui-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+    --ui-bg: rgba(255, 255, 255, 0.85);
+    --ui-border: rgba(255, 255, 255, 0.8);
+    --ui-shadow: 0 8px 32px rgba(31, 38, 135, 0.08);
     --ui-text: #334155;
+    --ui-text-dim: #64748b;
+    --ui-hover-bg: rgba(0, 0, 0, 0.04);
+
+    --logo-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    --logo-text: #ffffff;
 
     --node-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     --node-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -20,6 +25,7 @@
     --c-white-bg: #ffffff;
     --c-white-border: #e2e8f0;
     --c-white-text: #1e293b;
+
     --c-red-bg: #fee2e2;
     --c-red-border: #fecaca;
     --c-red-text: #991b1b;
@@ -44,8 +50,8 @@
     --c-cyan-bg: #cffafe;
     --c-cyan-border: #a5f3fc;
     --c-cyan-text: #155e75;
+
     --c-danger: #ef4444;
-    /* 红色警告色 */
     --c-danger-text: #ffffff;
 }
 
@@ -54,10 +60,14 @@
     --bg-color: #111827;
     --dot-color: #374151;
 
-    --ui-bg: rgba(31, 41, 55, 0.9);
-    --ui-border: rgba(255, 255, 255, 0.1);
+    --ui-bg: rgba(31, 41, 55, 0.85);
+    --ui-border: rgba(255, 255, 255, 0.05);
     --ui-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-    --ui-text: #e2e8f0;
+    --ui-text: #f1f5f9;
+    --ui-text-dim: #94a3b8;
+    --ui-hover-bg: rgba(255, 255, 255, 0.1);
+
+    --logo-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
 
     --node-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     --node-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
@@ -120,7 +130,6 @@ body.mode-pan {
     cursor: grabbing;
 }
 
-/* 当按下空格时，强制覆盖子元素光标，防止在节点上变成指针 */
 body.mode-space * {
     cursor: grab !important;
 }
@@ -132,144 +141,148 @@ body.mode-pan * {
 /* --- UI Panel --- */
 #ui-layer {
     position: absolute;
-    top: 20px;
-    left: 20px;
+    top: 24px;
+    left: 24px;
     z-index: 1000;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
+    /* 收起状态 */
+    width: 48px;
+    height: 48px;
+
+    border-radius: 14px;
     background: var(--ui-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--ui-border);
     box-shadow: var(--ui-shadow);
-
-    /* 关键：确保 visible，配合之前的修复 */
     overflow: visible;
-
     display: flex;
     flex-direction: column;
     color: var(--ui-text);
 
-    /* 🟢 默认状态（收起状态）的过渡逻辑 */
-    /* 解释：当鼠标离开时，Width 和 Height 会等待 0.15s 后才开始变小 (delay)，以便让内容先消失 */
     transition:
         width 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.15s,
         height 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.15s,
-        border-radius 0.3s,
-        background-color 0.3s;
+        border-radius 0.3s;
 }
 
-/* 2. 修改 Hover / Focus 状态 */
 #ui-layer:hover,
 #ui-layer:focus-within {
-    width: 320px;
+    width: 340px;
     height: auto;
-    border-radius: 16px;
-
-    /* 🟢 展开状态的过渡逻辑 */
-    /* 解释：当鼠标移入时，Width 立即变大 (delay 0s)，给内容腾出空间 */
+    border-radius: 18px;
     transition:
         width 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0s,
         height 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0s;
 }
 
+/* 顶部栏容器 */
 #ui-top-bar {
-    height: 44px;
+    height: 48px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    position: relative;
-    cursor: default;
+    padding: 0 6px;
+    /* 微调内边距 */
+    box-sizing: border-box;
 }
 
-#ui-icon-box {
-    width: 44px;
-    height: 44px;
+/* ✨ Logo 区域 - 重新设计 */
+#ui-logo-box {
+    width: 36px;
+    height: 36px;
+    /* border-radius: 10px;
+    background: var(--logo-gradient); */
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
+    /* color: var(--logo-text); */
+    font-size: 18px;
     flex-shrink: 0;
+    /* box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3); */
+    /* 默认在左上角 */
 }
 
-#ui-controls {
+/* 标题和按钮容器 */
+#ui-header-content {
     display: flex;
     align-items: center;
     flex-grow: 1;
-    justify-content: space-between;
-
-    /* 🟢 关键：给一个最小宽度，防止容器缩小时文字换行或被挤压 */
-    min-width: 240px;
-
+    overflow: visible;
     opacity: 0;
     pointer-events: none;
-    white-space: nowrap;
-    /* 移除之前的 overflow: hidden，确保弹窗能显示 */
-    padding-right: 0;
-    gap: 8px;
-
-    /* 🟢 收起时：立即变透明 (duration 0.15s, delay 0s) */
+    margin-left: 12px;
     transition: opacity 0.15s ease-out 0s;
 }
 
-#ui-layer:hover #ui-controls,
-#ui-layer:focus-within #ui-controls {
+#ui-layer:hover #ui-header-content,
+#ui-layer:focus-within #ui-header-content {
     opacity: 1;
     pointer-events: auto;
-
-    /* 🟢 展开时：等待宽度变大后再显示 (delay 0.2s) */
     transition: opacity 0.3s ease-out 0.2s;
 }
 
+/* Title - 重新设计 */
 #ui-title {
-    font-weight: 600;
-    font-size: 14px;
-    margin-left: 25px;
+    font-weight: 700;
+    font-size: 15px;
     flex-grow: 1;
-    text-align: center;
-}
-
-#btn-theme {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border: 1px solid transparent;
-    background: transparent;
-    font-size: 16px;
-    border-radius: 8px;
-    transition: all 0.2s;
+    white-space: nowrap;
+    letter-spacing: -0.02em;
     color: var(--ui-text);
 }
 
-#btn-theme:hover {
-    background: rgba(127, 127, 127, 0.1);
-    border-color: rgba(127, 127, 127, 0.2);
+/* 顶部功能按钮 (Theme & Help) - 重新设计 */
+.header-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--ui-text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-left: 4px;
+    position: relative;
+    /* For tooltip positioning */
 }
 
+.header-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+.header-btn:hover {
+    background: var(--ui-hover-bg);
+    color: var(--ui-text);
+}
+
+.header-btn.active {
+    background: var(--select-color);
+    color: white;
+}
+
+/* 内容区域 */
 #ui-content {
-    padding: 0 15px 15px 15px;
+    padding: 0 16px 16px 16px;
     opacity: 0;
     display: flex;
     flex-direction: column;
     gap: 12px;
-
-    /* 收起时：立即消失 */
     transition: opacity 0.15s ease-out 0s;
-    /* 增加这个防止收起时内容把容器撑大导致卡顿 */
     overflow: hidden;
+    height: 0;
+    /* 收起时高度为0，防止撑开 */
 }
 
 #ui-layer:hover #ui-content,
 #ui-layer:focus-within #ui-content {
     opacity: 1;
+    height: auto;
     overflow: visible;
-    /* 展开后允许溢出（虽然这里主要是 opacity） */
-
-    /* 展开时：慢慢显示 */
     transition: opacity 0.3s ease-out 0.2s;
 }
 
@@ -278,19 +291,21 @@ textarea {
     height: 80px;
     resize: none;
     border: 1px solid var(--dot-color);
-    border-radius: 8px;
-    padding: 10px;
+    border-radius: 10px;
+    padding: 12px;
     font-family: inherit;
     font-size: 14px;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
     color: inherit;
     outline: none;
     box-sizing: border-box;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, background-color 0.2s;
+    line-height: 1.5;
 }
 
 textarea:focus {
     border-color: var(--select-color);
+    background: var(--bg-color);
 }
 
 .btn-row {
@@ -298,8 +313,8 @@ textarea:focus {
     gap: 10px;
 }
 
-button {
-    flex: 1;
+button.primary {
+    width: 100%;
     padding: 10px;
     cursor: pointer;
     background: var(--select-color);
@@ -308,28 +323,36 @@ button {
     border-radius: 8px;
     font-weight: 600;
     font-size: 13px;
-    transition: transform 0.1s, opacity 0.2s, background-color 0.2s;
+    transition: transform 0.1s, opacity 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-button:active {
-    transform: scale(0.96);
+button.primary:active {
+    transform: scale(0.98);
 }
 
-button:hover {
+button.primary:hover {
     opacity: 0.9;
 }
 
 button.secondary {
+    flex: 1;
+    padding: 8px;
+    cursor: pointer;
     background: transparent;
     color: var(--ui-text);
     border: 1px solid var(--dot-color);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
 }
 
 button.secondary:hover {
-    background: rgba(127, 127, 127, 0.1);
+    background: var(--ui-hover-bg);
+    border-color: var(--ui-text-dim);
 }
 
-/* 清空确认状态样式 */
 button.btn-danger {
     background: var(--c-danger);
     color: var(--c-danger-text);
@@ -341,107 +364,90 @@ button.btn-danger:hover {
     opacity: 1;
 }
 
-.icon-btn {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border: 1px solid transparent;
-    background: transparent;
-    font-size: 16px;
-    border-radius: 8px;
-    transition: all 0.2s;
-    color: var(--ui-text);
-    position: relative;
-    /* 为 tooltip 定位 */
-}
-
-.icon-btn:hover {
-    background: rgba(127, 127, 127, 0.1);
-    border-color: rgba(127, 127, 127, 0.2);
-}
-
-.help-text {
-    font-size: 12px;
-    color: var(--ui-text);
-    opacity: 0.7;
-    line-height: 1.6;
-    padding-top: 5px;
-    border-top: 1px solid var(--dot-color);
-}
-
-.help-key {
-    display: inline-block;
-    background: rgba(127, 127, 127, 0.15);
-    padding: 0 4px;
-    border-radius: 4px;
-    font-family: monospace;
-    border: 1px solid rgba(127, 127, 127, 0.2);
-    font-size: 11px;
-}
-
-#btn-help {
-    position: relative;
-}
-
+/* 帮助菜单 */
 #help-modal {
     position: absolute;
-    top: 40px;
+    top: 52px;
     right: 0;
-    /* 对齐右侧 */
     width: 280px;
     background: var(--ui-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--ui-border);
     box-shadow: var(--ui-shadow);
-    border-radius: 12px;
-    padding: 15px;
-
-    /* 默认隐藏状态 */
+    border-radius: 14px;
+    padding: 16px;
     opacity: 0;
     pointer-events: none;
-    transform: translateY(-10px);
+    transform: translateY(-8px) scale(0.98);
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     z-index: 2000;
     text-align: left;
-
-    /* 解决文本在按钮内可能继承居中对齐的问题 */
-    line-height: 1.5;
-    cursor: default;
+    transform-origin: top right;
 }
 
-/* ⚠️ 修改处：改为通过 .show 类名控制显示，而不是 :hover */
 #help-modal.show {
     opacity: 1;
     pointer-events: auto;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
 }
 
 .help-row {
-    margin-bottom: 8px;
-    font-size: 12px;
+    margin-bottom: 10px;
+    font-size: 13px;
     color: var(--ui-text);
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    border-bottom: 1px dashed rgba(127, 127, 127, 0.1);
-    padding-bottom: 4px;
+    border-bottom: 1px dashed var(--dot-color);
+    padding-bottom: 6px;
 }
 
-.help-row:last-child {
+.help-row:last-of-type {
     border-bottom: none;
-    margin-bottom: 0;
+    margin-bottom: 16px;
 }
 
 .help-desc {
-    opacity: 0.8;
+    opacity: 0.75;
     font-weight: 500;
 }
 
-/* --- Canvas --- */
+.help-keys {
+    font-family: monospace;
+    font-size: 12px;
+    background: var(--ui-hover-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--ui-text);
+}
+
+/* GitHub Link */
+.github-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
+    font-size: 13px;
+    color: var(--ui-text);
+    background: var(--ui-hover-bg);
+    padding: 8px;
+    border-radius: 8px;
+    transition: background 0.2s;
+    margin-top: 8px;
+    font-weight: 500;
+}
+
+.github-link:hover {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .github-link:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* --- Canvas Elements --- */
 #canvas-container {
     width: 100%;
     height: 100%;
@@ -461,12 +467,13 @@ button.btn-danger:hover {
 .node {
     position: absolute;
     border: 1px solid transparent;
-    border-radius: 10px;
-    padding: 12px 18px;
+    border-radius: 12px;
+    padding: 12px 20px;
     min-width: 60px;
     text-align: center;
     box-shadow: var(--node-shadow);
     font-size: 14px;
+    font-weight: 500;
     cursor: grab;
     white-space: nowrap;
     z-index: 10;
@@ -479,7 +486,7 @@ button.btn-danger:hover {
 
 .node.selected {
     border: 2px solid var(--select-color) !important;
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2), var(--node-shadow) !important;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2), var(--node-shadow) !important;
     z-index: 50;
 }
 
@@ -487,7 +494,7 @@ button.btn-danger:hover {
     cursor: text;
     border-color: var(--select-color) !important;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
     user-select: text;
     -webkit-user-select: text;
 }
@@ -522,46 +529,6 @@ button.btn-danger:hover {
     color: var(--c-blue-text);
 }
 
-.group {
-    position: absolute;
-    border: 2px dashed var(--group-border);
-    background: var(--group-bg);
-    border-radius: 16px;
-    z-index: 5;
-    pointer-events: all;
-    transition: background 0.2s;
-}
-
-.group.selected {
-    border-color: var(--select-color);
-    background: rgba(99, 102, 241, 0.15);
-}
-
-svg.connections {
-    position: absolute;
-    top: 0;
-    left: 0;
-    overflow: visible;
-    z-index: 1;
-    pointer-events: none;
-}
-
-line.link {
-    stroke: var(--link-color);
-    stroke-width: 2;
-    opacity: 0.6;
-}
-
-#selection-box {
-    position: absolute;
-    border: 1px solid var(--select-color);
-    background: rgba(99, 102, 241, 0.15);
-    display: none;
-    z-index: 999;
-    border-radius: 4px;
-    pointer-events: none;
-}
-
 .node.c-orange {
     background: var(--c-orange-bg);
     border-color: var(--c-orange-border);
@@ -584,4 +551,44 @@ line.link {
     background: var(--c-cyan-bg);
     border-color: var(--c-cyan-border);
     color: var(--c-cyan-text);
+}
+
+.group {
+    position: absolute;
+    border: 2px dashed var(--group-border);
+    background: var(--group-bg);
+    border-radius: 20px;
+    z-index: 5;
+    pointer-events: all;
+    transition: background 0.2s;
+}
+
+.group.selected {
+    border-color: var(--select-color);
+    background: rgba(99, 102, 241, 0.15);
+}
+
+svg.connections {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: visible;
+    z-index: 1;
+    pointer-events: none;
+}
+
+line.link {
+    stroke: var(--link-color);
+    stroke-width: 2;
+    opacity: 0.5;
+}
+
+#selection-box {
+    position: absolute;
+    border: 1px solid var(--select-color);
+    background: rgba(99, 102, 241, 0.1);
+    display: none;
+    z-index: 999;
+    border-radius: 4px;
+    pointer-events: none;
 }

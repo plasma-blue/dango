@@ -3,10 +3,57 @@ const state = {
     nodes: [], groups: [], links: [],
     view: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 },
     selection: new Set(),
-    clipboard: [] // 内部剪贴板
+    clipboard: []
 };
 
-// 2. 扩充颜色配置 (Alt+1 ~ Alt+9)
+// 🆕 History System (Undo/Redo)
+const MAX_HISTORY = 50;
+const history = { undo: [], redo: [] };
+
+function pushHistory() {
+    // Deep clone state for history
+    const snapshot = JSON.stringify({
+        nodes: state.nodes,
+        groups: state.groups,
+        links: state.links
+    });
+
+    // Avoid pushing duplicate consecutive states
+    if (history.undo.length > 0 && history.undo[history.undo.length - 1] === snapshot) return;
+
+    history.undo.push(snapshot);
+    if (history.undo.length > MAX_HISTORY) history.undo.shift();
+    history.redo = []; // Clear redo stack on new action
+}
+
+function undo() {
+    if (history.undo.length === 0) return;
+    // Current state -> Redo
+    const currentSnapshot = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links });
+    history.redo.push(currentSnapshot);
+
+    const prev = JSON.parse(history.undo.pop());
+    state.nodes = prev.nodes;
+    state.groups = prev.groups;
+    state.links = prev.links;
+    state.selection.clear(); // Clear selection to avoid ghost ids
+    render();
+}
+
+function redo() {
+    if (history.redo.length === 0) return;
+    // Current state -> Undo
+    const currentSnapshot = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links });
+    history.undo.push(currentSnapshot);
+
+    const next = JSON.parse(history.redo.pop());
+    state.nodes = next.nodes;
+    state.groups = next.groups;
+    state.links = next.links;
+    state.selection.clear();
+    render();
+}
+
 const CONFIG = {
     colors: [
         'c-white', 'c-red', 'c-yellow', 'c-green', 'c-blue',
@@ -15,7 +62,7 @@ const CONFIG = {
 };
 const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
-// --- Initialization & Persistence ---
+// --- Initialization ---
 const LS_KEY = 'cc-canvas-data';
 function loadData() {
     const raw = localStorage.getItem(LS_KEY);
@@ -40,13 +87,21 @@ const themeBtn = document.getElementById('btn-theme');
 const htmlEl = document.documentElement;
 let isDark = localStorage.getItem('cc-theme') === 'dark';
 
+// Icons for theme
+const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+const ICON_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+
 function updateTheme() {
     htmlEl.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    themeBtn.innerText = isDark ? '☀️' : '🌙';
+    themeBtn.innerHTML = isDark ? ICON_SUN : ICON_MOON;
     localStorage.setItem('cc-theme', isDark ? 'dark' : 'light');
 }
 updateTheme();
-themeBtn.onclick = () => { isDark = !isDark; updateTheme(); };
+themeBtn.onclick = (e) => {
+    isDark = !isDark;
+    updateTheme();
+    e.currentTarget.blur();
+};
 
 // --- DOM Refs ---
 const els = {
@@ -122,12 +177,16 @@ function getNodeCenter(n) { return { x: n.x + (n.w || 0) / 2, y: n.y + (n.h || 0
 // --- Interactions ---
 document.getElementById('btn-add').onclick = () => {
     const text = els.input.value; if (!text.trim()) return;
+
+    // 🔴 Undo Point
+    pushHistory();
+
     const parts = text.split(/[\s,\n]+/).filter(t => t.trim().length > 0);
     const existingTexts = new Set(state.nodes.map(n => n.text));
     const startX = -state.view.x / state.view.scale + window.innerWidth / (2 * state.view.scale);
     const startY = -state.view.y / state.view.scale + window.innerHeight / (2 * state.view.scale);
     let count = 0;
-    parts.forEach((str, idx) => {
+    parts.forEach((str) => {
         if (!existingTexts.has(str)) {
             state.nodes.push({
                 id: uid(), text: str,
@@ -147,28 +206,29 @@ btnClear.onclick = () => {
         clearConfirm = true; btnClear.innerText = "确定?"; btnClear.classList.add('btn-danger');
         setTimeout(() => { if (clearConfirm) { clearConfirm = false; btnClear.innerText = "🗑️"; btnClear.classList.remove('btn-danger'); } }, 3000);
     } else {
+        // 🔴 Undo Point
+        pushHistory();
         state.nodes = []; state.groups = []; state.links = []; state.selection.clear();
         clearConfirm = false; btnClear.innerText = "🗑️"; btnClear.classList.remove('btn-danger'); render();
     }
 };
-// 🆕 新增：问号按钮点击逻辑
+
+// Help Toggle
 els.btnHelp.onclick = (e) => {
-    // 阻止冒泡，防止触发 window 的关闭逻辑
     e.stopPropagation();
     els.helpModal.classList.toggle('show');
+    els.btnHelp.classList.toggle('active');
 };
+// Close Help when closing UI or clicking outside
 els.uiLayer.addEventListener('mouseleave', () => {
     els.helpModal.classList.remove('show');
+    els.btnHelp.classList.remove('active');
 });
-els.helpModal.onclick = (e) => {
-    e.stopPropagation();
-};
-
-// 🆕 新增：点击任意地方关闭帮助菜单
+els.helpModal.onclick = (e) => e.stopPropagation();
 window.addEventListener('click', (e) => {
-    // 如果点击的目标不是问号按钮内部，也不是 Modal 内部，则关闭
     if (!els.btnHelp.contains(e.target)) {
         els.helpModal.classList.remove('show');
+        els.btnHelp.classList.remove('active');
     }
 });
 
@@ -176,15 +236,17 @@ let dragStart = null;
 let mode = null;
 const keys = {};
 
+// Record state BEFORE manipulation starts
+let stateBeforeDrag = null;
+
 els.container.addEventListener('mousedown', e => {
     if (e.target.isContentEditable) return;
     if (e.target.closest('.node') && e.detail === 2) return;
 
-    // 中键 或 (左键+空格) -> 平移
     if (e.button === 1 || (e.button === 0 && keys.Space)) {
         mode = 'pan';
         dragStart = { x: e.clientX, y: e.clientY, viewX: state.view.x, viewY: state.view.y };
-        document.body.classList.add('mode-pan'); // 添加抓取中样式
+        document.body.classList.add('mode-pan');
         return;
     }
 
@@ -192,12 +254,16 @@ els.container.addEventListener('mousedown', e => {
         const nodeEl = e.target.closest('.node');
         const groupEl = e.target.closest('.group');
         const worldPos = screenToWorld(e.clientX, e.clientY);
-        if (nodeEl) {
-            handleSelection(nodeEl.dataset.id, e.ctrlKey || e.shiftKey);
-            mode = 'move'; dragStart = { x: worldPos.x, y: worldPos.y, initialPos: getSelectionPositions() };
-        } else if (groupEl) {
-            handleSelection(groupEl.dataset.id, e.ctrlKey || e.shiftKey);
-            mode = 'move'; dragStart = { x: worldPos.x, y: worldPos.y, initialPos: getSelectionPositions() };
+
+        if (nodeEl || groupEl) {
+            const id = (nodeEl || groupEl).dataset.id;
+            handleSelection(id, e.ctrlKey || e.shiftKey);
+            mode = 'move';
+
+            // Snapshot state before dragging starts (for Undo)
+            stateBeforeDrag = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links });
+
+            dragStart = { x: worldPos.x, y: worldPos.y, initialPos: getSelectionPositions() };
         } else {
             if (!e.ctrlKey && !e.shiftKey) state.selection.clear();
             mode = 'box'; dragStart = { x: e.clientX, y: e.clientY };
@@ -243,6 +309,20 @@ els.container.addEventListener('mousemove', e => {
 });
 
 els.container.addEventListener('mouseup', e => {
+    if (mode === 'move' && stateBeforeDrag) {
+        // Compare current state with before drag
+        const currentState = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links });
+        if (currentState !== stateBeforeDrag) {
+            // Push the OLD state to undo stack
+            // Logic: The change just happened. If I undo, I want to go back to stateBeforeDrag.
+            // So I push stateBeforeDrag to history.undo
+            history.undo.push(stateBeforeDrag);
+            if (history.undo.length > MAX_HISTORY) history.undo.shift();
+            history.redo = [];
+        }
+        stateBeforeDrag = null;
+    }
+
     if (mode === 'box') {
         const rect = getStandardRect(dragStart.x, dragStart.y, e.clientX, e.clientY);
         const worldRect = {
@@ -254,13 +334,11 @@ els.container.addEventListener('mouseup', e => {
         render();
     }
     mode = null; dragStart = null;
-    document.body.classList.remove('mode-pan'); // 移除抓取中样式
+    document.body.classList.remove('mode-pan');
 });
 
-// 5. 修复触控板平移逻辑：区分 Zoom 和 Pan
 els.container.addEventListener('wheel', e => {
     e.preventDefault();
-    // 浏览器标准：Ctrl + Wheel = Zoom，触控板双指捏合也会触发 Ctrl+Wheel
     if (e.ctrlKey) {
         const factor = 1 + ((e.deltaY > 0 ? -1 : 1) * 0.1);
         const worldX = (e.clientX - state.view.x) / state.view.scale;
@@ -269,7 +347,6 @@ els.container.addEventListener('wheel', e => {
         state.view.x = e.clientX - worldX * state.view.scale;
         state.view.y = e.clientY - worldY * state.view.scale;
     } else {
-        // 纯 Wheel = Pan (鼠标滚轮或触控板双指移动)
         state.view.x -= e.deltaX;
         state.view.y -= e.deltaY;
     }
@@ -281,6 +358,9 @@ els.container.addEventListener('dblclick', e => {
     if (nodeEl) {
         const node = state.nodes.find(n => n.id === nodeEl.dataset.id);
         if (node) {
+            // 🔴 Undo Point
+            pushHistory();
+
             nodeEl.contentEditable = true; nodeEl.classList.add('editing'); nodeEl.focus();
             const range = document.createRange(); range.selectNodeContents(nodeEl);
             const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
@@ -300,30 +380,42 @@ window.addEventListener('keydown', e => {
     if (e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
     keys[e.code] = true;
 
-    // 1. 空格键改变光标 (Space Hand)
-    if (e.code === 'Space') {
+    if (e.code === 'Space') { e.preventDefault(); document.body.classList.add('mode-space'); }
+
+    // 🆕 Undo / Redo Shortcuts
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') {
         e.preventDefault();
-        document.body.classList.add('mode-space');
+        if (e.shiftKey) redo(); else undo();
+        return;
+    }
+    // Redo alternative (Ctrl+Y)
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY') {
+        e.preventDefault(); redo(); return;
     }
 
-    if (e.ctrlKey && e.code === 'KeyG' && !e.shiftKey) { e.preventDefault(); createGroup(); }
-    if (e.ctrlKey && e.shiftKey && e.code === 'KeyG') { e.preventDefault(); dissolveGroup(); }
-    if (e.ctrlKey && e.code === 'KeyL') { e.preventDefault(); toggleLink(); }
-    if (e.code === 'Delete') deleteSelection();
+    // Actions that change state need pushHistory()
+    if (e.ctrlKey && e.code === 'KeyG' && !e.shiftKey) { e.preventDefault(); pushHistory(); createGroup(); }
+    if (e.ctrlKey && e.shiftKey && e.code === 'KeyG') { e.preventDefault(); pushHistory(); dissolveGroup(); }
+    if (e.ctrlKey && e.code === 'KeyL') { e.preventDefault(); pushHistory(); toggleLink(); }
+    if (e.code === 'Delete') { pushHistory(); deleteSelection(); }
 
-    // 3. 剪贴板逻辑 (Ctrl+C / Ctrl+V)
     if (e.ctrlKey && e.code === 'KeyC') { e.preventDefault(); copySelection(); }
-    if (e.ctrlKey && e.code === 'KeyV') { e.preventDefault(); pasteClipboard(); }
-    // 兼容旧习惯
-    if (e.ctrlKey && e.code === 'KeyD') { e.preventDefault(); duplicateSelection(); }
+    if (e.ctrlKey && e.code === 'KeyV') { e.preventDefault(); pushHistory(); pasteClipboard(); }
 
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code) && !e.altKey) { e.preventDefault(); nudgeSelection(e.code); }
+    // Nudge (also changes state)
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code) && !e.altKey) {
+        e.preventDefault();
+        // We probably don't want to save history on every pixel nudge, but for correctness:
+        // A better approach for nudge might be debouncing history save, but here we keep it simple.
+        pushHistory();
+        nudgeSelection(e.code);
+    }
 
-    // 2. 颜色快捷键 (Alt+1~9)
     if (e.altKey && !e.shiftKey && e.code.startsWith('Digit')) {
         const num = parseInt(e.key);
         if (num >= 1 && num <= 9 && num <= CONFIG.colors.length) {
             e.preventDefault();
+            pushHistory();
             colorSelection(CONFIG.colors[num - 1]);
         }
     }
@@ -331,6 +423,7 @@ window.addEventListener('keydown', e => {
     if (e.ctrlKey && e.code === 'KeyS') { e.preventDefault(); exportJson(); }
 
     if (e.altKey && !e.ctrlKey) {
+        pushHistory(); // Alignment changes state
         switch (e.code) {
             case 'KeyA': e.preventDefault(); alignSelection('left'); break;
             case 'KeyD': e.preventDefault(); alignSelection('right'); break;
@@ -344,10 +437,7 @@ window.addEventListener('keydown', e => {
 
 window.addEventListener('keyup', e => {
     keys[e.code] = false;
-    // 移除 Space 的光标
-    if (e.code === 'Space') {
-        document.body.classList.remove('mode-space');
-    }
+    if (e.code === 'Space') document.body.classList.remove('mode-space');
 });
 
 // Helpers
@@ -383,47 +473,30 @@ function isIntersect(r1, r2) {
 }
 
 // --- Logic Actions ---
-// 3. 剪贴板实现
 function copySelection() {
     const selNodes = state.nodes.filter(n => state.selection.has(n.id));
     const selGroups = state.groups.filter(g => state.selection.has(g.id));
-    // 简单的深拷贝
     if (selNodes.length > 0 || selGroups.length > 0) {
         state.clipboard = JSON.parse(JSON.stringify({ nodes: selNodes, groups: selGroups }));
     }
 }
-
 function pasteClipboard() {
     if (!state.clipboard || (!state.clipboard.nodes.length && !state.clipboard.groups.length)) return;
-
     state.selection.clear();
-    const mapping = {}; // oldId -> newId
-
-    // 1. 处理节点
+    const mapping = {};
     state.clipboard.nodes.forEach(n => {
-        const newId = uid();
-        mapping[n.id] = newId;
-        const newNode = { ...n, id: newId, x: n.x + 20, y: n.y + 20 }; // 偏移 20px
-        state.nodes.push(newNode);
-        state.selection.add(newId);
+        const newId = uid(); mapping[n.id] = newId;
+        const newNode = { ...n, id: newId, x: n.x + 20, y: n.y + 20 };
+        state.nodes.push(newNode); state.selection.add(newId);
     });
-
-    // 2. 处理组 (需更新 memberIds)
     state.clipboard.groups.forEach(g => {
         const newId = uid();
         const newGroup = { ...g, id: newId, x: g.x + 20, y: g.y + 20 };
-        // 如果成员也被复制了，指向新成员；否则保留指向（但通常复制组也应包含成员，这里简化处理：若成员不在剪贴板，则指向旧成员? 
-        // 逻辑修正：通常选中组会自动移动成员。这里若只复制了组壳子没复制节点，会出问题。
-        // 但 copySelection 仅复制选中的。若选中组，必须也选中成员才能完整复制内容。
-        // 为简化：如果成员在 mapping 中，更新为新 ID；否则丢弃或保留(这里选择保留原始引用，虽然可能会有多父级问题，但作为简单工具可接受)
         newGroup.memberIds = g.memberIds.map(mid => mapping[mid] || mid);
-        state.groups.push(newGroup);
-        state.selection.add(newId);
+        state.groups.push(newGroup); state.selection.add(newId);
     });
-
     render();
 }
-
 function createGroup() {
     const selectedNodes = state.nodes.filter(n => state.selection.has(n.id));
     if (selectedNodes.length === 0) return;
@@ -459,24 +532,6 @@ function deleteSelection() {
     state.groups.forEach(g => { g.memberIds = g.memberIds.filter(mid => state.nodes.find(n => n.id === mid)); });
     state.selection.clear(); render();
 }
-function duplicateSelection() {
-    // 简单的本地立即复制 (旧功能保留)
-    const newSelection = new Set(); const mapping = {};
-    state.nodes.forEach(n => {
-        if (state.selection.has(n.id)) {
-            const newNode = { ...n, id: uid(), x: n.x + 20, y: n.y + 20 };
-            state.nodes.push(newNode); newSelection.add(newNode.id); mapping[n.id] = newNode.id;
-        }
-    });
-    state.groups.forEach(g => {
-        if (state.selection.has(g.id)) {
-            const newGroup = { ...g, id: uid(), x: g.x + 20, y: g.y + 20 };
-            newGroup.memberIds = g.memberIds.map(mid => mapping[mid] || mid);
-            state.groups.push(newGroup); newSelection.add(newGroup.id);
-        }
-    });
-    state.selection = newSelection; render();
-}
 function nudgeSelection(key) {
     const step = 10; let dx = 0, dy = 0;
     if (key === 'ArrowUp') dy = -step; if (key === 'ArrowDown') dy = step;
@@ -488,7 +543,6 @@ function nudgeSelection(key) {
     render();
 }
 function colorSelection(colorClass) { state.nodes.forEach(n => { if (state.selection.has(n.id)) n.color = colorClass; }); render(); }
-
 function setItemPos(item, newX, newY) {
     const dx = newX - item.x; const dy = newY - item.y;
     item.x = newX; item.y = newY;
@@ -548,7 +602,12 @@ document.getElementById('file-input').onchange = (e) => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-        try { const data = JSON.parse(ev.target.result); state.nodes = data.nodes || []; state.groups = data.groups || []; state.links = data.links || []; state.selection.clear(); render(); }
+        try {
+            const data = JSON.parse(ev.target.result);
+            // 🔴 Undo Point before loading new file
+            pushHistory();
+            state.nodes = data.nodes || []; state.groups = data.groups || []; state.links = data.links || []; state.selection.clear(); render();
+        }
         catch (err) { alert('文件格式错误'); }
     };
     reader.readAsText(file); e.target.value = '';
