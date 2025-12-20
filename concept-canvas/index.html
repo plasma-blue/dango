@@ -1,3 +1,4 @@
+<!-- START FILE: index.html -->
 <!DOCTYPE html>
 <html lang="zh-CN">
 
@@ -15,25 +16,43 @@
             <div id="ui-icon-box">✨</div>
             <div id="ui-controls">
                 <div id="ui-title">Concept Canvas</div>
-                <button id="btn-theme" title="切换深色/浅色模式">🌙</button>
+
+                <!-- 主题切换 -->
+                <button id="btn-theme" class="icon-btn" title="切换深色/浅色模式">🌙</button>
+
+                <!-- 帮助按钮 & Tooltip -->
+                <!-- 帮助按钮容器 -->
+                <div id="btn-help" class="icon-btn">
+                    ❓
+                    <!-- 弹窗在按钮内部，方便 CSS 定位 -->
+                    <div id="help-modal">
+                        <div class="help-row"><span class="help-desc">平移画布</span> <span>🖱️中键 / 空格+拖拽 / 双指</span></div>
+                        <div class="help-row"><span class="help-desc">缩放</span> <span>Ctrl+滚轮 / 双指捏合</span></div>
+                        <div class="help-row"><span class="help-desc">编辑 / 多选</span> <span>双击 / Ctrl+点击</span></div>
+                        <div class="help-row"><span class="help-desc">复制 / 粘贴</span> <span>Ctrl + C / V</span></div>
+                        <div class="help-row"><span class="help-desc">编组 / 解组</span> <span>Ctrl + G /
+                                Ctrl+Shift+G</span></div>
+                        <div class="help-row"><span class="help-desc">连线</span> <span>选两个节点 + Ctrl+L</span></div>
+                        <div class="help-row"><span class="help-desc">对齐</span> <span>Alt + A/W/D/S</span></div>
+                        <div class="help-row"><span class="help-desc">居中 / 分布</span> <span>Alt + H/V (Shift分布)</span>
+                        </div>
+                        <div class="help-row"><span class="help-desc">切换颜色</span> <span>Alt + 1 ~ 9</span></div>
+                    </div>
+                </div>
             </div>
         </div>
+
         <div id="ui-content">
             <textarea id="input-text" placeholder="输入想法... (空格/逗号/换行分隔)"></textarea>
             <button id="btn-add">✨ 生成节点 (Generate)</button>
             <div class="btn-row">
                 <button class="secondary" id="btn-export">导出</button>
-                <button class="secondary" id="btn-import" onclick="document.getElementById('file-input').click()">导入</button>
+                <button class="secondary" id="btn-import"
+                    onclick="document.getElementById('file-input').click()">导入</button>
                 <button class="secondary" id="btn-clear" title="清空画布">🗑️</button>
                 <input type="file" id="file-input" style="display:none" accept=".json">
             </div>
-            <div class="help-text">
-                <div>🖱️ <b>中键 / 空格+拖拽</b> 平移 | <b>双击</b> 编辑</div>
-                <div>⌨️ <span class="help-key">Alt</span> + <span class="help-key">A</span><span class="help-key">W</span><span class="help-key">D</span><span class="help-key">S</span> 左上右下对齐</div>
-                <div>⌨️ <span class="help-key">Alt</span> + <span class="help-key">H</span><span class="help-key">V</span> 居中 | <span class="help-key">Shift</span>+<span class="help-key">H</span><span class="help-key">V</span> 分布</div>
-                <div>⌨️ <span class="help-key">Ctrl</span> + <span class="help-key">G</span> 编组 | <span class="help-key">L</span> 连线 | <span class="help-key">D</span> 复制</div>
-                <div>⌨️ <span class="help-key">Alt</span> + <span class="help-key">1</span>~<span class="help-key">5</span> 切换颜色</div>
-            </div>
+            <!-- 原有的 help-text 已移除，由 Tooltip 接管 -->
         </div>
     </div>
 
@@ -50,3 +69,4 @@
 </body>
 
 </html>
+<!-- END FILE: index.html -->
