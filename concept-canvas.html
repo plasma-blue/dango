@@ -155,8 +155,13 @@
             display: flex;
             align-items: center;
             flex-grow: 1;
+
+            /* 这里的 space-between 配合下面的 flex-grow 实现两端对齐 */
             justify-content: space-between;
-            padding-right: 15px;
+
+            /* 修改这里：右侧留一点点空隙，让按钮不要贴边，也不要离太远 */
+            padding-right: 6px;
+
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.2s;
@@ -167,20 +172,41 @@
         #ui-title {
             font-weight: 600;
             font-size: 14px;
-            margin-left: 5px;
+            margin-left: 25px;
+
+            /* 新增：让文字“撑开”中间区域，把按钮挤到最右边 */
+            flex-grow: 1;
+            text-align: center;
+            /* 或者 center，看您喜好 */
         }
 
         #btn-theme {
+            /* 核心修改：固定宽高，做成小方块 */
+            width: 32px;
+            height: 32px;
+
+            /* 让里面的 🌙/☀️ 绝对居中 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            /* 样式美化 */
             cursor: pointer;
-            border: none;
-            background: none;
-            font-size: 18px;
-            padding: 5px;
-            border-radius: 4px;
+            border: 1px solid transparent;
+            /* 预留边框位置避免抖动 */
+            background: transparent;
+            font-size: 16px;
+            border-radius: 8px;
+            /* 圆角矩形 */
+            transition: all 0.2s;
+            color: var(--ui-text);
+            /* 确保跟随字体颜色 */
         }
 
+        /* 鼠标悬停时的效果：加个浅色背景 */
         #btn-theme:hover {
             background: rgba(127, 127, 127, 0.1);
+            border-color: rgba(127, 127, 127, 0.2);
         }
 
         /* 展开时显示标题区 */
@@ -231,7 +257,7 @@
         }
 
         button {
-            flex: 1;
+            flex: 0.7;
             padding: 10px;
             cursor: pointer;
             background: var(--select-color);
@@ -689,6 +715,17 @@
             if (e.altKey && ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].includes(e.code)) {
                 e.preventDefault();
                 colorSelection(CONFIG.colors[parseInt(e.key) - 1]);
+            }
+            if (e.ctrlKey && e.code === 'KeyS') {
+                e.preventDefault();
+                const data = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links }, null, 2);
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `concept-canvas_${getTimestamp()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
             }
         });
         window.addEventListener('keyup', e => keys[e.code] = false);
