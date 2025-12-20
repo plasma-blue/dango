@@ -12,7 +12,7 @@
 
     <div id="ui-layer">
         <div id="ui-top-bar">
-            <div id="ui-icon-box">✨</div> <!-- 居中的星星 -->
+            <div id="ui-icon-box">✨</div>
             <div id="ui-controls">
                 <div id="ui-title">Concept Canvas</div>
                 <button id="btn-theme" title="切换深色/浅色模式">🌙</button>
@@ -22,20 +22,17 @@
             <textarea id="input-text" placeholder="输入想法... (空格/逗号/换行分隔)"></textarea>
             <button id="btn-add">✨ 生成节点 (Generate)</button>
             <div class="btn-row">
-                <button class="secondary" id="btn-export">导出 JSON</button>
-                <button class="secondary" id="btn-import" onclick="document.getElementById('file-input').click()">导入
-                    JSON</button>
+                <button class="secondary" id="btn-export">导出</button>
+                <button class="secondary" id="btn-import" onclick="document.getElementById('file-input').click()">导入</button>
+                <button class="secondary" id="btn-clear" title="清空画布">🗑️</button>
                 <input type="file" id="file-input" style="display:none" accept=".json">
             </div>
             <div class="help-text">
-                <div>🖱️ <b>中键 / 空格+拖拽</b> 平移</div>
-                <div>🖱️ <b>双击</b> 编辑 | <b>Ctrl+Click</b> 多选</div>
-                <div>⌨️ <span class="help-key">Ctrl</span>+<span class="help-key">G</span> 编组 | <span
-                        class="help-key">L</span> 连线</div>
-                <div>⌨️ <span class="help-key">Alt</span>+<span class="help-key">1</span>~<span
-                        class="help-key">5</span> 切换颜色</div>
-                <div>⌨️ <span class="help-key">Del</span> 删除 | <span class="help-key">Ctrl</span>+<span
-                        class="help-key">D</span> 复制</div>
+                <div>🖱️ <b>中键 / 空格+拖拽</b> 平移 | <b>双击</b> 编辑</div>
+                <div>⌨️ <span class="help-key">Alt</span> + <span class="help-key">A</span><span class="help-key">W</span><span class="help-key">D</span><span class="help-key">S</span> 左上右下对齐</div>
+                <div>⌨️ <span class="help-key">Alt</span> + <span class="help-key">H</span><span class="help-key">V</span> 居中 | <span class="help-key">Shift</span>+<span class="help-key">H</span><span class="help-key">V</span> 分布</div>
+                <div>⌨️ <span class="help-key">Ctrl</span> + <span class="help-key">G</span> 编组 | <span class="help-key">L</span> 连线 | <span class="help-key">D</span> 复制</div>
+                <div>⌨️ <span class="help-key">Alt</span> + <span class="help-key">1</span>~<span class="help-key">5</span> 切换颜色</div>
             </div>
         </div>
     </div>
