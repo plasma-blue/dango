@@ -4,28 +4,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>轻量级概念画布 (Concept Canvas) - Pro</title>
+    <title>轻量级概念画布 (Concept Canvas) - v3</title>
     <style>
+        /* --- 变量定义：支持日/夜模式 --- */
         :root {
-            /* 更有质感的配色 */
+            /* 🌞 Light Mode (默认) */
             --bg-color: #f8f9fa;
             --dot-color: #cbd5e1;
 
-            --ui-bg: rgba(255, 255, 255, 0.75);
-            --ui-border: rgba(255, 255, 255, 0.8);
-            --ui-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+            --ui-bg: rgba(255, 255, 255, 0.85);
+            --ui-border: rgba(255, 255, 255, 0.6);
+            --ui-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+            --ui-text: #334155;
 
-            --node-bg: #ffffff;
-            --node-border: #e2e8f0;
-            --node-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-            --node-shadow-hover: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            --node-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            --node-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 
             --select-color: #6366f1;
-            /* Indigo */
             --group-bg: rgba(99, 102, 241, 0.05);
             --group-border: #a5b4fc;
             --link-color: #94a3b8;
-            --text-color: #1e293b;
+
+            /* 节点配色 (浅色模式) */
+            --c-white-bg: #ffffff;
+            --c-white-border: #e2e8f0;
+            --c-white-text: #1e293b;
+            --c-red-bg: #fee2e2;
+            --c-red-border: #fecaca;
+            --c-red-text: #991b1b;
+            --c-yellow-bg: #fef3c7;
+            --c-yellow-border: #fde68a;
+            --c-yellow-text: #92400e;
+            --c-green-bg: #d1fae5;
+            --c-green-border: #a7f3d0;
+            --c-green-text: #065f46;
+            --c-blue-bg: #e0e7ff;
+            --c-blue-border: #c7d2fe;
+            --c-blue-text: #3730a3;
+        }
+
+        /* 🌙 Dark Mode */
+        [data-theme="dark"] {
+            --bg-color: #111827;
+            --dot-color: #374151;
+
+            --ui-bg: rgba(31, 41, 55, 0.85);
+            --ui-border: rgba(255, 255, 255, 0.1);
+            --ui-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            --ui-text: #e2e8f0;
+
+            --node-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+            --node-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+
+            --select-color: #818cf8;
+            --group-bg: rgba(129, 140, 248, 0.1);
+            --group-border: #4f46e5;
+            --link-color: #64748b;
+
+            /* 节点配色 (深色模式 - 降低亮度，提高文字对比度) */
+            --c-white-bg: #1f2937;
+            --c-white-border: #374151;
+            --c-white-text: #f3f4f6;
+            --c-red-bg: #450a0a;
+            --c-red-border: #7f1d1d;
+            --c-red-text: #fecaca;
+            --c-yellow-bg: #451a03;
+            --c-yellow-border: #78350f;
+            --c-yellow-text: #fde68a;
+            --c-green-bg: #064e3b;
+            --c-green-border: #065f46;
+            --c-green-text: #a7f3d0;
+            --c-blue-bg: #1e1b4b;
+            --c-blue-border: #312e81;
+            --c-blue-text: #c7d2fe;
         }
 
         body,
@@ -37,23 +88,23 @@
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
-            /* 点阵背景 */
             background-image: radial-gradient(var(--dot-color) 1.5px, transparent 1.5px);
             background-size: 24px 24px;
-            color: var(--text-color);
+            color: var(--ui-text);
             user-select: none;
+            /* 防止拖拽时选中背景文字 */
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        /* UI Layer - 悬浮自动折叠设计 */
+        /* --- UI Panel --- */
         #ui-layer {
             position: absolute;
             top: 20px;
             left: 20px;
             z-index: 1000;
-            width: 40px;
-            /* 默认宽度 */
-            height: 40px;
-            /* 默认高度 */
+            width: 44px;
+            height: 44px;
+            /* 小方块 */
             border-radius: 12px;
             background: var(--ui-bg);
             backdrop-filter: blur(12px);
@@ -64,9 +115,9 @@
             transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             display: flex;
             flex-direction: column;
+            color: var(--ui-text);
         }
 
-        /* 悬停或聚焦时展开 */
         #ui-layer:hover,
         #ui-layer:focus-within {
             width: 320px;
@@ -74,43 +125,52 @@
             border-radius: 16px;
         }
 
-        /* 折叠状态的图标 */
-        #ui-handle {
-            min-height: 40px;
+        /* 顶部 Handle 区 */
+        #ui-top-bar {
+            min-height: 44px;
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between;
+            padding: 0 10px;
             cursor: default;
-            font-size: 18px;
-            color: #64748b;
-            font-weight: bold;
-            white-space: nowrap;
-            padding: 0 15px;
         }
 
-        #ui-layer:hover #ui-handle {
-            justify-content: flex-start;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        #ui-icon {
+            font-size: 24px;
+            width: 24px;
+            text-align: center;
         }
 
-        #ui-handle span {
+        /* 🧠 emoji */
+        #ui-title {
             opacity: 0;
-            transition: opacity 0.2s;
-            margin-left: 10px;
+            white-space: nowrap;
+            font-weight: 600;
             font-size: 14px;
+            margin-left: 10px;
+            flex-grow: 1;
+            transition: opacity 0.2s;
         }
 
-        #ui-layer:hover #ui-handle span {
+        #btn-theme {
+            opacity: 0;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 18px;
+            transition: opacity 0.2s;
+        }
+
+        #ui-layer:hover #ui-title,
+        #ui-layer:hover #btn-theme,
+        #ui-layer:focus-within #ui-title,
+        #ui-layer:focus-within #btn-theme {
             opacity: 1;
         }
 
-        #ui-handle::before {
-            content: '✨';
-        }
-
-        /* 内容区域 */
+        /* 内容区 */
         #ui-content {
-            padding: 15px;
+            padding: 0 15px 15px 15px;
             opacity: 0;
             transition: opacity 0.3s;
             display: flex;
@@ -127,12 +187,13 @@
             width: 100%;
             height: 80px;
             resize: none;
-            border: 1px solid #cbd5e1;
+            border: 1px solid var(--dot-color);
             border-radius: 8px;
             padding: 10px;
             font-family: inherit;
             font-size: 14px;
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.1);
+            color: inherit;
             outline: none;
             box-sizing: border-box;
             transition: border-color 0.2s;
@@ -158,7 +219,6 @@
             font-weight: 600;
             font-size: 13px;
             transition: transform 0.1s, opacity 0.2s;
-            box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
         }
 
         button:active {
@@ -170,36 +230,35 @@
         }
 
         button.secondary {
-            background: white;
-            color: #475569;
-            border: 1px solid #cbd5e1;
-            box-shadow: none;
+            background: transparent;
+            color: var(--ui-text);
+            border: 1px solid var(--dot-color);
         }
 
         button.secondary:hover {
-            background: #f1f5f9;
+            background: rgba(127, 127, 127, 0.1);
         }
 
         .help-text {
             font-size: 12px;
-            color: #64748b;
+            color: var(--ui-text);
+            opacity: 0.7;
             line-height: 1.6;
             padding-top: 5px;
-            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            border-top: 1px solid var(--dot-color);
         }
 
         .help-key {
             display: inline-block;
-            background: #f1f5f9;
+            background: rgba(127, 127, 127, 0.15);
             padding: 0 4px;
             border-radius: 4px;
             font-family: monospace;
-            border: 1px solid #e2e8f0;
+            border: 1px solid rgba(127, 127, 127, 0.2);
             font-size: 11px;
-            color: #475569;
         }
 
-        /* Canvas World */
+        /* --- Canvas --- */
         #canvas-container {
             width: 100%;
             height: 100%;
@@ -207,7 +266,6 @@
             top: 0;
             left: 0;
             overflow: hidden;
-            cursor: default;
         }
 
         #world {
@@ -217,23 +275,20 @@
             transform-origin: 0 0;
         }
 
-        /* Elements */
+        /* --- Node Styling --- */
         .node {
             position: absolute;
-            background: var(--node-bg);
-            border: 1px solid var(--node-border);
+            border: 1px solid transparent;
             border-radius: 10px;
-            /* 圆角加大 */
             padding: 12px 18px;
             min-width: 60px;
             text-align: center;
             box-shadow: var(--node-shadow);
-            color: var(--text-color);
             font-size: 14px;
             cursor: grab;
             white-space: nowrap;
             z-index: 10;
-            transition: box-shadow 0.2s, transform 0.1s, background-color 0.2s;
+            transition: box-shadow 0.2s, transform 0.1s;
         }
 
         .node:hover {
@@ -245,40 +300,45 @@
             z-index: 20;
         }
 
+        /* 关键修复：编辑时允许选中文本 */
         .node.editing {
             cursor: text;
             border-color: var(--select-color);
             outline: none;
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+            user-select: text;
+            -webkit-user-select: text;
         }
 
-        /* Node Colors - 莫兰迪色系 */
+        /* Color Variants using Variables */
         .node.c-white {
-            background: #ffffff;
+            background: var(--c-white-bg);
+            border-color: var(--c-white-border);
+            color: var(--c-white-text);
         }
 
         .node.c-red {
-            background: #fee2e2;
-            border-color: #fecaca;
-            color: #991b1b;
+            background: var(--c-red-bg);
+            border-color: var(--c-red-border);
+            color: var(--c-red-text);
         }
 
         .node.c-yellow {
-            background: #fef3c7;
-            border-color: #fde68a;
-            color: #92400e;
+            background: var(--c-yellow-bg);
+            border-color: var(--c-yellow-border);
+            color: var(--c-yellow-text);
         }
 
         .node.c-green {
-            background: #d1fae5;
-            border-color: #a7f3d0;
-            color: #065f46;
+            background: var(--c-green-bg);
+            border-color: var(--c-green-border);
+            color: var(--c-green-text);
         }
 
         .node.c-blue {
-            background: #e0e7ff;
-            border-color: #c7d2fe;
-            color: #3730a3;
+            background: var(--c-blue-bg);
+            border-color: var(--c-blue-border);
+            color: var(--c-blue-text);
         }
 
         .group {
@@ -293,11 +353,7 @@
 
         .group.selected {
             border-color: var(--select-color);
-            background: rgba(99, 102, 241, 0.1);
-        }
-
-        .group:hover {
-            background: rgba(99, 102, 241, 0.08);
+            background: rgba(99, 102, 241, 0.15);
         }
 
         svg.connections {
@@ -330,25 +386,29 @@
 <body>
 
     <div id="ui-layer">
-        <div id="ui-handle"><span>控制台 / Console</span></div>
+        <div id="ui-top-bar">
+            <div id="ui-icon">🧠</div> <!-- Emoji Icon -->
+            <div id="ui-title">Concept Canvas</div>
+            <button id="btn-theme" title="切换深色/浅色模式">🌙</button>
+        </div>
         <div id="ui-content">
-            <textarea id="input-text" placeholder="输入文本，空格/逗号/换行分隔...&#10;Input text here..."></textarea>
-            <button id="btn-add">✨ 生成节点 (Create Nodes)</button>
+            <textarea id="input-text" placeholder="输入想法... (空格/逗号/换行分隔)"></textarea>
+            <button id="btn-add">✨ 生成节点 (Generate)</button>
             <div class="btn-row">
-                <button class="secondary" id="btn-export">导出 JSON</button>
-                <button class="secondary" id="btn-import" onclick="document.getElementById('file-input').click()">导入
-                    JSON</button>
+                <button class="secondary" id="btn-export">导出</button>
+                <button class="secondary" id="btn-import"
+                    onclick="document.getElementById('file-input').click()">导入</button>
                 <input type="file" id="file-input" style="display:none" accept=".json">
             </div>
             <div class="help-text">
-                <div>🖱️ <b>中键 / 空格+拖拽</b> 平移画布</div>
+                <div>🖱️ <b>中键 / 空格+拖拽</b> 平移</div>
                 <div>🖱️ <b>双击</b> 编辑 | <b>Ctrl+Click</b> 多选</div>
                 <div>⌨️ <span class="help-key">Ctrl</span>+<span class="help-key">G</span> 编组 | <span
-                        class="help-key">Ctrl</span>+<span class="help-key">⇧</span>+<span class="help-key">G</span> 解散
-                </div>
-                <div>⌨️ <span class="help-key">Ctrl</span>+<span class="help-key">L</span> 连线 (选2个)</div>
-                <div>⌨️ <span class="help-key">1</span>-<span class="help-key">5</span> 改色 | <span
-                        class="help-key">Del</span> 删除</div>
+                        class="help-key">L</span> 连线</div>
+                <div>⌨️ <span class="help-key">Alt</span>+<span class="help-key">1</span>~<span
+                        class="help-key">5</span> 切换颜色</div>
+                <div>⌨️ <span class="help-key">Del</span> 删除 | <span class="help-key">Ctrl</span>+<span
+                        class="help-key">D</span> 复制</div>
             </div>
         </div>
     </div>
@@ -363,9 +423,7 @@
     </div>
 
     <script>
-        /**
-         * 核心逻辑 (保持不变，仅适配新ID和视觉)
-         */
+        // --- State & Config ---
         const state = {
             nodes: [], groups: [], links: [],
             view: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 },
@@ -374,6 +432,20 @@
         const CONFIG = { colors: ['c-white', 'c-red', 'c-yellow', 'c-green', 'c-blue'] };
         const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
+        // --- Theme Logic ---
+        const themeBtn = document.getElementById('btn-theme');
+        const htmlEl = document.documentElement;
+        let isDark = localStorage.getItem('cc-theme') === 'dark';
+
+        function updateTheme() {
+            htmlEl.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            themeBtn.innerText = isDark ? '☀️' : '🌙';
+            localStorage.setItem('cc-theme', isDark ? 'dark' : 'light');
+        }
+        updateTheme();
+        themeBtn.onclick = () => { isDark = !isDark; updateTheme(); };
+
+        // --- DOM Refs ---
         const els = {
             container: document.getElementById('canvas-container'),
             world: document.getElementById('world'),
@@ -384,18 +456,18 @@
             selectBox: document.getElementById('selection-box')
         };
 
+        // --- Render System ---
         function render() {
             els.world.style.transform = `translate(${state.view.x}px, ${state.view.y}px) scale(${state.view.scale})`;
 
-            // 渲染连接
+            // Links
             els.connectionsLayer.innerHTML = '';
             state.links.forEach(l => {
                 const n1 = state.nodes.find(n => n.id === l.sourceId);
                 const n2 = state.nodes.find(n => n.id === l.targetId);
                 if (n1 && n2) {
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    const c1 = getNodeCenter(n1);
-                    const c2 = getNodeCenter(n2);
+                    const c1 = getNodeCenter(n1); const c2 = getNodeCenter(n2);
                     line.setAttribute('x1', c1.x); line.setAttribute('y1', c1.y);
                     line.setAttribute('x2', c2.x); line.setAttribute('y2', c2.y);
                     line.classList.add('link');
@@ -414,12 +486,7 @@
             dataArray.forEach(item => {
                 activeIds.add(item.id);
                 let el = existing.get(item.id);
-                if (!el) {
-                    el = document.createElement('div');
-                    el.className = className;
-                    el.dataset.id = item.id;
-                    parent.appendChild(el);
-                }
+                if (!el) { el = document.createElement('div'); el.className = className; el.dataset.id = item.id; parent.appendChild(el); }
                 renderFn(el, item);
             });
             existing.forEach((el, id) => { if (!activeIds.has(id)) el.remove(); });
@@ -428,10 +495,14 @@
         function renderNode(el, node) {
             el.style.transform = `translate(${node.x}px, ${node.y}px)`;
             if (el.innerText !== node.text && !el.isContentEditable) el.innerText = node.text;
-            el.className = `node ${node.color || 'c-white'} ${state.selection.has(node.id) ? 'selected' : ''}`;
-            if (!node.w || !node.h) {
-                requestAnimationFrame(() => { node.w = el.offsetWidth; node.h = el.offsetHeight; });
-            }
+
+            // 动态添加/移除 selected 类
+            const isSelected = state.selection.has(node.id);
+            const classes = ['node', node.color || 'c-white'];
+            if (isSelected) classes.push('selected');
+            el.className = classes.join(' ');
+
+            if (!node.w || !node.h) requestAnimationFrame(() => { node.w = el.offsetWidth; node.h = el.offsetHeight; });
         }
 
         function renderGroup(el, group) {
@@ -439,35 +510,37 @@
             el.style.width = `${group.w}px`; el.style.height = `${group.h}px`;
             el.className = `group ${state.selection.has(group.id) ? 'selected' : ''}`;
         }
-
         function getNodeCenter(n) { return { x: n.x + (n.w || 0) / 2, y: n.y + (n.h || 0) / 2 }; }
 
-        // --- 交互逻辑 ---
+        // --- Interactions ---
         document.getElementById('btn-add').onclick = () => {
-            const text = els.input.value;
-            if (!text.trim()) return;
+            const text = els.input.value; if (!text.trim()) return;
             const parts = text.split(/[\s,\n]+/).filter(t => t.trim().length > 0);
             const existingTexts = new Set(state.nodes.map(n => n.text));
             const startX = -state.view.x / state.view.scale + window.innerWidth / (2 * state.view.scale);
             const startY = -state.view.y / state.view.scale + window.innerHeight / (2 * state.view.scale);
+            let count = 0;
             parts.forEach((str, idx) => {
                 if (!existingTexts.has(str)) {
                     state.nodes.push({
                         id: uid(), text: str,
-                        x: startX + (idx % 5) * 140, // 稍微拉开间距
-                        y: startY + Math.floor(idx / 5) * 80,
+                        x: startX + (count % 5) * 140, y: startY + Math.floor(count / 5) * 80,
                         color: 'c-white'
                     });
+                    count++;
                 }
             });
-            els.input.value = '';
-            render();
+            els.input.value = ''; render();
         };
 
         let dragStart = null;
         let mode = null;
+        const keys = {};
 
         els.container.addEventListener('mousedown', e => {
+            // 处于编辑模式时，点击内部不触发拖拽
+            if (e.target.isContentEditable) return;
+
             if (e.target.closest('.node') && e.detail === 2) return;
             if (e.button === 1 || (e.button === 0 && keys.Space)) {
                 mode = 'pan'; dragStart = { x: e.clientX, y: e.clientY, viewX: state.view.x, viewY: state.view.y };
@@ -512,7 +585,7 @@
                             if (init.type === 'group') {
                                 item.memberIds.forEach(mid => {
                                     const member = state.nodes.find(n => n.id === mid);
-                                    if (member && !dragStart.initialPos[mid]) { // 未选中的成员跟随移动
+                                    if (member && !dragStart.initialPos[mid]) {
                                         const mInit = dragStart.initialPos[`member_${mid}`];
                                         if (mInit) { member.x = mInit.x + dx; member.y = mInit.y + dy; }
                                     }
@@ -534,9 +607,7 @@
                     x: (rect.x - state.view.x) / state.view.scale, y: (rect.y - state.view.y) / state.view.scale,
                     w: rect.w / state.view.scale, h: rect.h / state.view.scale
                 };
-                [...state.nodes, ...state.groups].forEach(item => {
-                    if (isIntersect(worldRect, item)) state.selection.add(item.id);
-                });
+                [...state.nodes, ...state.groups].forEach(item => { if (isIntersect(worldRect, item)) state.selection.add(item.id); });
                 els.selectBox.style.display = 'none';
                 render();
             }
@@ -554,29 +625,39 @@
             render();
         }, { passive: false });
 
+        // Double Click Edit
         els.container.addEventListener('dblclick', e => {
             const nodeEl = e.target.closest('.node');
             if (nodeEl) {
                 const node = state.nodes.find(n => n.id === nodeEl.dataset.id);
                 if (node) {
-                    nodeEl.contentEditable = true; nodeEl.classList.add('editing'); nodeEl.focus();
+                    nodeEl.contentEditable = true;
+                    nodeEl.classList.add('editing');
+                    nodeEl.focus();
+                    // 初始选中全部，但允许后续点击修改光标位置
                     const range = document.createRange(); range.selectNodeContents(nodeEl);
                     const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
-                    nodeEl.onblur = () => {
+
+                    const finishEdit = () => {
                         nodeEl.contentEditable = false; nodeEl.classList.remove('editing');
                         node.text = nodeEl.innerText;
                         node.w = nodeEl.offsetWidth; node.h = nodeEl.offsetHeight;
                         render();
                     };
-                    nodeEl.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); nodeEl.blur(); } };
+                    nodeEl.onblur = finishEdit;
+                    nodeEl.onkeydown = (ev) => {
+                        if (ev.key === 'Enter') { ev.preventDefault(); nodeEl.blur(); }
+                        ev.stopPropagation(); // 阻止按键冒泡触发快捷键
+                    };
                 }
             }
         });
 
-        const keys = {};
+        // Keys
         window.addEventListener('keydown', e => {
             if (e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
             keys[e.code] = true;
+
             if (e.code === 'Space') e.preventDefault();
             if (e.ctrlKey && e.code === 'KeyG' && !e.shiftKey) { e.preventDefault(); createGroup(); }
             if (e.ctrlKey && e.shiftKey && e.code === 'KeyG') { e.preventDefault(); dissolveGroup(); }
@@ -584,7 +665,12 @@
             if (e.code === 'Delete') deleteSelection();
             if (e.ctrlKey && e.code === 'KeyD') { e.preventDefault(); duplicateSelection(); }
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) { e.preventDefault(); nudgeSelection(e.code); }
-            if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].includes(e.code)) colorSelection(CONFIG.colors[parseInt(e.key) - 1]);
+
+            // Alt + 1~5 for Colors
+            if (e.altKey && ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].includes(e.code)) {
+                e.preventDefault();
+                colorSelection(CONFIG.colors[parseInt(e.key) - 1]);
+            }
         });
         window.addEventListener('keyup', e => keys[e.code] = false);
 
@@ -686,11 +772,10 @@
         }
         function colorSelection(colorClass) { state.nodes.forEach(n => { if (state.selection.has(n.id)) n.color = colorClass; }); render(); }
 
-        // Persistence
         document.getElementById('btn-export').onclick = () => {
             const blob = new Blob([JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links }, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob); const a = document.createElement('a');
-            a.href = url; a.download = 'canvas-pro.json'; a.click(); URL.revokeObjectURL(url);
+            a.href = url; a.download = 'canvas-v3.json'; a.click(); URL.revokeObjectURL(url);
         };
         document.getElementById('file-input').onchange = (e) => {
             const file = e.target.files[0]; if (!file) return;
