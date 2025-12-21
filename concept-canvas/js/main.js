@@ -234,10 +234,22 @@ checkHideGrid.onchange = (e) => {
 };
 
 btnSettings.onclick = (e) => {
-    e.stopPropagation();
-    modalSettings.classList.toggle('show');
-    btnSettings.classList.toggle('active');
+    e.stopPropagation(); // 阻止冒泡，防止触发 window.onclick
+
+    const isShowing = modalSettings.classList.contains('show');
+    if (isShowing) {
+        modalSettings.classList.remove('show');
+        btnSettings.classList.remove('active');
+    } else {
+        // 打开设置时，关闭帮助面板，避免重叠
+        els.helpModal.classList.remove('show');
+        els.btnHelp.classList.remove('active');
+
+        modalSettings.classList.add('show');
+        btnSettings.classList.add('active');
+    }
 };
+
 
 // 点击外部关闭设置
 window.addEventListener('click', (e) => {
@@ -415,9 +427,30 @@ btnClear.onclick = () => {
 // Help Toggle
 els.btnHelp.onclick = (e) => {
     e.stopPropagation();
-    els.helpModal.classList.toggle('show');
-    els.btnHelp.classList.toggle('active');
+
+    const isShowing = els.helpModal.classList.contains('show');
+    if (isShowing) {
+        els.helpModal.classList.remove('show');
+        els.btnHelp.classList.remove('active');
+    } else {
+        // 打开帮助时，关闭设置面板
+        modalSettings.classList.remove('show');
+        btnSettings.classList.remove('active');
+
+        els.helpModal.classList.add('show');
+        els.btnHelp.classList.add('active');
+    }
 };
+
+// 3. ✨ 核心改进：点击面板内部时，不要关闭面板
+modalSettings.onclick = (e) => {
+    e.stopPropagation();
+};
+
+els.helpModal.onclick = (e) => {
+    e.stopPropagation();
+};
+
 // Close Help when closing UI or clicking outside
 els.uiLayer.addEventListener('mouseleave', () => {
     els.helpModal.classList.remove('show');
@@ -425,7 +458,13 @@ els.uiLayer.addEventListener('mouseleave', () => {
 });
 els.helpModal.onclick = (e) => e.stopPropagation();
 window.addEventListener('click', (e) => {
-    if (!els.btnHelp.contains(e.target)) {
+    // 关闭设置
+    if (!btnSettings.contains(e.target) && !modalSettings.contains(e.target)) {
+        modalSettings.classList.remove('show');
+        btnSettings.classList.remove('active');
+    }
+    // 关闭帮助
+    if (!els.btnHelp.contains(e.target) && !els.helpModal.contains(e.target)) {
         els.helpModal.classList.remove('show');
         els.btnHelp.classList.remove('active');
     }
