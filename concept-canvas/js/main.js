@@ -23,6 +23,7 @@ const TRANSLATIONS = {
         settings_tooltip: "设置",
         settings_precise: "精准映射 (按行布局)",
         settings_hide_grid: "隐藏网格点",
+        help_tooltip: "帮助/快捷键",
     },
     en: {
         page_title: "✨ Concept Canvas",
@@ -47,6 +48,7 @@ const TRANSLATIONS = {
         settings_tooltip: "Settings",
         settings_precise: "Precise Mapping (Line-based)",
         settings_hide_grid: "Hide Grid Dots",
+        help_tooltip: "Help / Shortcut",
     }
 };
 
