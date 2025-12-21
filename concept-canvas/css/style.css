@@ -635,3 +635,7 @@ input[type="checkbox"] {
     height: 16px;
     accent-color: var(--select-color);
 }
+
+body.hide-grid {
+    background-image: none !important;
+}

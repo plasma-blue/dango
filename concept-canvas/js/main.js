@@ -22,6 +22,7 @@ const TRANSLATIONS = {
         alert_file_err: "文件格式错误",
         settings_tooltip: "设置",
         settings_precise: "精准映射 (按行布局)",
+        settings_hide_grid: "隐藏网格点",
     },
     en: {
         page_title: "✨ Concept Canvas",
@@ -45,6 +46,7 @@ const TRANSLATIONS = {
         alert_file_err: "Invalid file format",
         settings_tooltip: "Settings",
         settings_precise: "Precise Mapping (Line-based)",
+        settings_hide_grid: "Hide Grid Dots",
     }
 };
 
@@ -202,18 +204,33 @@ themeBtn.onclick = (e) => {
 };
 
 state.settings = {
-    preciseLayout: localStorage.getItem('cc-precise-layout') === 'true'
+    preciseLayout: localStorage.getItem('cc-precise-layout') === 'true',
+    hideGrid: localStorage.getItem('cc-hide-grid') === 'true',
 };
 
 // 齿轮按钮点击
 const btnSettings = document.getElementById('btn-settings');
 const modalSettings = document.getElementById('settings-modal');
 const checkPrecise = document.getElementById('check-precise');
+const checkHideGrid = document.getElementById('check-hide-grid');
 
-checkPrecise.checked = state.settings.preciseLayout;
+function applySettings() {
+    checkPrecise.checked = state.settings.preciseLayout;
+
+    checkHideGrid.checked = state.settings.hideGrid;
+    // 根据状态给 body 添加或移除类
+    document.body.classList.toggle('hide-grid', state.settings.hideGrid);
+}
+
 checkPrecise.onchange = (e) => {
     state.settings.preciseLayout = e.target.checked;
     localStorage.setItem('cc-precise-layout', e.target.checked);
+};
+
+checkHideGrid.onchange = (e) => {
+    state.settings.hideGrid = e.target.checked;
+    localStorage.setItem('cc-hide-grid', e.target.checked);
+    document.body.classList.toggle('hide-grid', state.settings.hideGrid);
 };
 
 btnSettings.onclick = (e) => {
@@ -795,5 +812,6 @@ document.getElementById('file-input').onchange = (e) => {
     reader.readAsText(file); e.target.value = '';
 };
 
+applySettings();
 render();
 updateI18n();
