@@ -1,3 +1,97 @@
+
+const TRANSLATIONS = {
+    zh: {
+        page_title: "✨ 概念画板",
+        brand_name: "概念画板",
+        lang_toggle: "en",
+        lang_tooltip: "切换至英文",
+        input_placeholder: "输入想法... (空格/逗号/换行分隔)",
+        btn_add: "✨ 生成节点 ✨",
+        btn_export: "导出",
+        btn_import: "导入",
+        confirm_clear: "确定?",
+        help_undo: "撤销 / 重做",
+        help_pan: "平移画布",
+        help_zoom: "缩放",
+        help_edit: "编辑 / 多选",
+        help_copy: "复制 / 粘贴",
+        help_group: "编组 / 解组",
+        help_link: "连线",
+        help_align: "对齐",
+        help_color: "切换颜色",
+        alert_file_err: "文件格式错误"
+    },
+    en: {
+        page_title: "✨ Concept Canvas",
+        brand_name: "Concept Canvas",
+        lang_toggle: "中",
+        lang_tooltip: "Switch to Chinese",
+        input_placeholder: "Enter ideas... (Space/Comma/Newline)",
+        btn_add: "✨ Create Nodes ✨",
+        btn_export: "Export",
+        btn_import: "Import",
+        confirm_clear: "Sure?",
+        help_undo: "Undo / Redo",
+        help_pan: "Pan Canvas",
+        help_zoom: "Zoom",
+        help_edit: "Edit / Multi-select",
+        help_copy: "Copy / Paste",
+        help_group: "Group / Ungroup",
+        help_link: "Link Nodes",
+        help_align: "Align",
+        help_color: "Change Color",
+        alert_file_err: "Invalid file format"
+    }
+};
+
+
+// --- 修改初始化逻辑 ---
+const LS_LANG_KEY = 'cc-lang';
+// 优先从本地缓存读取，其次检测浏览器语言（只支持中英，其余默认英）
+let currentLang = localStorage.getItem(LS_LANG_KEY) ||
+    (navigator.language.startsWith('zh') ? 'zh' : 'en');
+
+function updateI18n() {
+    const texts = TRANSLATIONS[currentLang];
+
+    // 1. 修改浏览器标签页标题
+    document.title = texts.page_title;
+
+    // 2. 更新所有文本内容 (data-i18n)
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (texts[key]) el.innerText = texts[key];
+    });
+
+    // 3. 更新所有悬浮说明 (data-i18n-title)
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        if (texts[key]) el.title = texts[key];
+    });
+
+    // 4. 更新所有占位符 (data-i18n-placeholder)
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (texts[key]) el.placeholder = texts[key];
+    });
+
+    // 5. 特殊处理：语言切换按钮本身的文字
+    document.getElementById('btn-lang').innerText = texts['lang_toggle'];
+
+    // 6. 特殊处理：清空按钮状态回复
+    if (!clearConfirm) {
+        document.getElementById('btn-clear').innerText = "🗑️";
+    }
+
+    localStorage.setItem(LS_LANG_KEY, currentLang);
+}
+
+document.getElementById('btn-lang').onclick = (e) => {
+    currentLang = currentLang === 'zh' ? 'en' : 'zh';
+    updateI18n();
+    e.currentTarget.blur();
+};
+
 // --- State & Config ---
 const state = {
     nodes: [], groups: [], links: [],
@@ -176,40 +270,81 @@ function getNodeCenter(n) { return { x: n.x + (n.w || 0) / 2, y: n.y + (n.h || 0
 
 // --- Interactions ---
 document.getElementById('btn-add').onclick = () => {
-    const text = els.input.value; if (!text.trim()) return;
+    const text = els.input.value;
+    if (!text.trim()) return;
 
-    // 🔴 Undo Point
     pushHistory();
 
     const parts = text.split(/[\s,\n]+/).filter(t => t.trim().length > 0);
     const existingTexts = new Set(state.nodes.map(n => n.text));
-    const startX = -state.view.x / state.view.scale + window.innerWidth / (2 * state.view.scale);
-    const startY = -state.view.y / state.view.scale + window.innerHeight / (2 * state.view.scale);
-    let count = 0;
-    parts.forEach((str) => {
-        if (!existingTexts.has(str)) {
-            state.nodes.push({
-                id: uid(), text: str,
-                x: startX + (count % 5) * 140, y: startY + Math.floor(count / 5) * 80,
-                w: 0, h: 0, color: 'c-white'
-            });
-            count++;
-        }
+
+    // 过滤掉已存在的节点，只计算新节点
+    const newParts = parts.filter(str => !existingTexts.has(str));
+    if (newParts.length === 0) return;
+
+    // --- 核心优化：居中算法 ---
+
+    // 1. 获取当前视口中心在世界坐标系中的位置
+    const centerX = (window.innerWidth / 2 - state.view.x) / state.view.scale;
+    const centerY = (window.innerHeight / 2 - state.view.y) / state.view.scale;
+
+    // 2. 预估节点矩阵的规模 (每行最多5个)
+    const colCount = Math.min(newParts.length, 5);
+    const rowCount = Math.ceil(newParts.length / 5);
+
+    const spacingX = 140; // 节点横向间距
+    const spacingY = 80;  // 节点纵向间距
+
+    // 3. 计算整个群落的预估宽高 (减去 1 是因为间距数量比节点数少 1)
+    const clusterWidth = (colCount - 1) * spacingX;
+    const clusterHeight = (rowCount - 1) * spacingY;
+
+    // 4. 计算起始点 (让群落中心重合画布中心)
+    // 另外减去 50 和 20 是为了抵消单个节点自身的预估尺寸（宽约100，高约40）的一半
+    const startX = centerX - (clusterWidth / 2) - 50;
+    const startY = centerY - (clusterHeight / 2) - 20;
+
+    // --- 执行生成 ---
+    newParts.forEach((str, index) => {
+        const col = index % 5;
+        const row = Math.floor(index / 5);
+
+        state.nodes.push({
+            id: uid(),
+            text: str,
+            x: startX + col * spacingX,
+            y: startY + row * spacingY,
+            w: 0, h: 0,
+            color: 'c-white'
+        });
     });
-    els.input.value = ''; render();
+
+    els.input.value = '';
+    render();
 };
 
 const btnClear = document.getElementById('btn-clear');
 let clearConfirm = false;
 btnClear.onclick = () => {
+    const texts = TRANSLATIONS[currentLang];
     if (!clearConfirm) {
-        clearConfirm = true; btnClear.innerText = "确定?"; btnClear.classList.add('btn-danger');
-        setTimeout(() => { if (clearConfirm) { clearConfirm = false; btnClear.innerText = "🗑️"; btnClear.classList.remove('btn-danger'); } }, 3000);
+        clearConfirm = true;
+        btnClear.innerText = texts['confirm_clear']; // 使用翻译词汇
+        btnClear.classList.add('btn-danger');
+        setTimeout(() => {
+            if (clearConfirm) {
+                clearConfirm = false;
+                btnClear.innerText = "🗑️";
+                btnClear.classList.remove('btn-danger');
+            }
+        }, 3000);
     } else {
-        // 🔴 Undo Point
         pushHistory();
         state.nodes = []; state.groups = []; state.links = []; state.selection.clear();
-        clearConfirm = false; btnClear.innerText = "🗑️"; btnClear.classList.remove('btn-danger'); render();
+        clearConfirm = false;
+        btnClear.innerText = "🗑️";
+        btnClear.classList.remove('btn-danger');
+        render();
     }
 };
 
@@ -614,3 +749,4 @@ document.getElementById('file-input').onchange = (e) => {
 };
 
 render();
+updateI18n();
