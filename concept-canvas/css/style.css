@@ -592,3 +592,46 @@ line.link {
     border-radius: 4px;
     pointer-events: none;
 }
+
+/* 复用帮助面板的样式，增加一些设置专用的 */
+.help-modal-style {
+    position: absolute;
+    top: 52px;
+    right: 0;
+    width: 220px;
+    background: var(--ui-bg);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--ui-border);
+    box-shadow: var(--ui-shadow);
+    border-radius: 14px;
+    padding: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px) scale(0.98);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 2000;
+    transform-origin: top right;
+}
+
+#settings-modal.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+}
+
+.settings-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--ui-text);
+    padding: 4px 0;
+}
+
+/* 简单的复选框样式 */
+input[type="checkbox"] {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--select-color);
+}

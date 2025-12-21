@@ -3,7 +3,7 @@ const TRANSLATIONS = {
     zh: {
         page_title: "✨ 概念画板",
         brand_name: "概念画板",
-        lang_toggle: "en",
+        lang_toggle: "EN",
         lang_tooltip: "切换至英文",
         input_placeholder: "输入想法... (空格/逗号/换行分隔)",
         btn_add: "✨ 生成节点 ✨",
@@ -19,7 +19,9 @@ const TRANSLATIONS = {
         help_link: "连线",
         help_align: "对齐",
         help_color: "切换颜色",
-        alert_file_err: "文件格式错误"
+        alert_file_err: "文件格式错误",
+        settings_tooltip: "设置",
+        settings_precise: "精准映射 (按行布局)",
     },
     en: {
         page_title: "✨ Concept Canvas",
@@ -40,7 +42,9 @@ const TRANSLATIONS = {
         help_link: "Link Nodes",
         help_align: "Align",
         help_color: "Change Color",
-        alert_file_err: "Invalid file format"
+        alert_file_err: "Invalid file format",
+        settings_tooltip: "Settings",
+        settings_precise: "Precise Mapping (Line-based)",
     }
 };
 
@@ -197,6 +201,35 @@ themeBtn.onclick = (e) => {
     e.currentTarget.blur();
 };
 
+state.settings = {
+    preciseLayout: localStorage.getItem('cc-precise-layout') === 'true'
+};
+
+// 齿轮按钮点击
+const btnSettings = document.getElementById('btn-settings');
+const modalSettings = document.getElementById('settings-modal');
+const checkPrecise = document.getElementById('check-precise');
+
+checkPrecise.checked = state.settings.preciseLayout;
+checkPrecise.onchange = (e) => {
+    state.settings.preciseLayout = e.target.checked;
+    localStorage.setItem('cc-precise-layout', e.target.checked);
+};
+
+btnSettings.onclick = (e) => {
+    e.stopPropagation();
+    modalSettings.classList.toggle('show');
+    btnSettings.classList.toggle('active');
+};
+
+// 点击外部关闭设置
+window.addEventListener('click', (e) => {
+    if (!btnSettings.contains(e.target)) {
+        modalSettings.classList.remove('show');
+        btnSettings.classList.remove('active');
+    }
+});
+
 // --- DOM Refs ---
 const els = {
     container: document.getElementById('canvas-container'),
@@ -275,49 +308,63 @@ document.getElementById('btn-add').onclick = () => {
 
     pushHistory();
 
-    const parts = text.split(/[\s,\n]+/).filter(t => t.trim().length > 0);
-    const existingTexts = new Set(state.nodes.map(n => n.text));
-
-    // 过滤掉已存在的节点，只计算新节点
-    const newParts = parts.filter(str => !existingTexts.has(str));
-    if (newParts.length === 0) return;
-
-    // --- 核心优化：居中算法 ---
-
-    // 1. 获取当前视口中心在世界坐标系中的位置
     const centerX = (window.innerWidth / 2 - state.view.x) / state.view.scale;
     const centerY = (window.innerHeight / 2 - state.view.y) / state.view.scale;
+    const spacingX = 140;
+    const spacingY = 80;
 
-    // 2. 预估节点矩阵的规模 (每行最多5个)
-    const colCount = Math.min(newParts.length, 5);
-    const rowCount = Math.ceil(newParts.length / 5);
+    const existingTexts = new Set(state.nodes.map(n => n.text));
+    let nodesToCreate = [];
 
-    const spacingX = 140; // 节点横向间距
-    const spacingY = 80;  // 节点纵向间距
-
-    // 3. 计算整个群落的预估宽高 (减去 1 是因为间距数量比节点数少 1)
-    const clusterWidth = (colCount - 1) * spacingX;
-    const clusterHeight = (rowCount - 1) * spacingY;
-
-    // 4. 计算起始点 (让群落中心重合画布中心)
-    // 另外减去 50 和 20 是为了抵消单个节点自身的预估尺寸（宽约100，高约40）的一半
-    const startX = centerX - (clusterWidth / 2) - 50;
-    const startY = centerY - (clusterHeight / 2) - 20;
-
-    // --- 执行生成 ---
-    newParts.forEach((str, index) => {
-        const col = index % 5;
-        const row = Math.floor(index / 5);
-
-        state.nodes.push({
-            id: uid(),
-            text: str,
-            x: startX + col * spacingX,
-            y: startY + row * spacingY,
-            w: 0, h: 0,
-            color: 'c-white'
+    if (state.settings.preciseLayout) {
+        // --- 精准映射逻辑 (回车换行) ---
+        const lines = text.split('\n');
+        lines.forEach((line, rowIndex) => {
+            const words = line.split(/[\s,，]+/).filter(w => w.trim().length > 0);
+            words.forEach((word, colIndex) => {
+                if (!existingTexts.has(word)) {
+                    nodesToCreate.push({ text: word, row: rowIndex, col: colIndex });
+                }
+            });
         });
-    });
+
+        if (nodesToCreate.length === 0) return;
+
+        // 计算矩阵包围盒以便居中
+        const maxRow = Math.max(...nodesToCreate.map(n => n.row));
+        const rows = [...new Set(nodesToCreate.map(n => n.row))].sort((a, b) => a - b);
+
+        // 我们需要找出每一行实际有多少个词来辅助居中（这里简化处理，按整体最大列宽居中）
+        const maxCol = Math.max(...nodesToCreate.map(n => n.col));
+
+        const startX = centerX - (maxCol * spacingX) / 2 - 50;
+        const startY = centerY - (maxRow * spacingY) / 2 - 20;
+
+        nodesToCreate.forEach(n => {
+            state.nodes.push({
+                id: uid(), text: n.text,
+                x: startX + n.col * spacingX, y: startY + n.row * spacingY,
+                w: 0, h: 0, color: 'c-white'
+            });
+        });
+    } else {
+        // --- 原有的自动流式逻辑 (5列) ---
+        const parts = text.split(/[\s,\n，]+/).filter(t => t.trim().length > 0);
+        const filteredParts = parts.filter(p => !existingTexts.has(p));
+
+        const colCount = Math.min(filteredParts.length, 5);
+        const rowCount = Math.ceil(filteredParts.length / 5);
+        const startX = centerX - ((colCount - 1) * spacingX) / 2 - 50;
+        const startY = centerY - ((rowCount - 1) * spacingY) / 2 - 20;
+
+        filteredParts.forEach((str, index) => {
+            state.nodes.push({
+                id: uid(), text: str,
+                x: startX + (index % 5) * spacingX, y: startY + Math.floor(index / 5) * spacingY,
+                w: 0, h: 0, color: 'c-white'
+            });
+        });
+    }
 
     els.input.value = '';
     render();
