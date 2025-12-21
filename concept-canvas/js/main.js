@@ -476,6 +476,8 @@ const keys = {};
 
 // Record state BEFORE manipulation starts
 let stateBeforeDrag = null;
+let isPrepareToClone = false;
+let targetAlreadySelectedAtStart = false; // 记录点击前的选中状态
 
 els.container.addEventListener('mousedown', e => {
     if (e.target.isContentEditable) return;
@@ -495,7 +497,25 @@ els.container.addEventListener('mousedown', e => {
 
         if (nodeEl || groupEl) {
             const id = (nodeEl || groupEl).dataset.id;
-            handleSelection(id, e.ctrlKey || e.shiftKey);
+            targetIdAtMouseDown = id;
+            targetAlreadySelectedAtStart = state.selection.has(id);
+            hasMovedDuringDrag = false; // 重置移动标记
+
+            if (e.ctrlKey) {
+                // Ctrl 模式：先确保它在选择集里，方便拖动或克隆
+                state.selection.add(id);
+                isPrepareToClone = true;
+                render();
+            } else {
+                // 普通模式：如果点的不是已选中的，清空并选择当前
+                if (!targetAlreadySelectedAtStart) {
+                    state.selection.clear();
+                    state.selection.add(id);
+                    render();
+                }
+                isPrepareToClone = false;
+            }
+
             mode = 'move';
 
             // Snapshot state before dragging starts (for Undo)
@@ -522,6 +542,18 @@ els.container.addEventListener('mousemove', e => {
         const worldPos = screenToWorld(e.clientX, e.clientY);
         const dx = worldPos.x - dragStart.x;
         const dy = worldPos.y - dragStart.y;
+
+        // 只要移动距离超过阈值，就标记为已移动
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+            hasMovedDuringDrag = true;
+
+            // 触发克隆逻辑
+            if (isPrepareToClone) {
+                cloneSelectionInPlace();
+                isPrepareToClone = false; // 一次拖拽只克隆一次
+            }
+        }
+
         state.selection.forEach(id => {
             const init = dragStart.initialPos[id];
             if (init) {
@@ -547,18 +579,24 @@ els.container.addEventListener('mousemove', e => {
 });
 
 els.container.addEventListener('mouseup', e => {
-    if (mode === 'move' && stateBeforeDrag) {
-        // Compare current state with before drag
-        const currentState = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links });
-        if (currentState !== stateBeforeDrag) {
-            // Push the OLD state to undo stack
-            // Logic: The change just happened. If I undo, I want to go back to stateBeforeDrag.
-            // So I push stateBeforeDrag to history.undo
-            history.undo.push(stateBeforeDrag);
-            if (history.undo.length > MAX_HISTORY) history.undo.shift();
-            history.redo = [];
+    if (mode === 'move') {
+        // --- 修复多次单选的关键逻辑 ---
+        if (!hasMovedDuringDrag && e.ctrlKey && targetAlreadySelectedAtStart) {
+            // 如果是按住 Ctrl 点了一个已经选中的物体，且中途没移动
+            // 说明用户是想“取消选择”这个物体
+            state.selection.delete(targetIdAtMouseDown);
+            render();
         }
-        stateBeforeDrag = null;
+
+        if (stateBeforeDrag) {
+            const currentState = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links });
+            if (currentState !== stateBeforeDrag) {
+                history.undo.push(stateBeforeDrag);
+                if (history.undo.length > MAX_HISTORY) history.undo.shift();
+                history.redo = [];
+            }
+            stateBeforeDrag = null;
+        }
     }
 
     if (mode === 'box') {
@@ -571,7 +609,10 @@ els.container.addEventListener('mouseup', e => {
         els.selectBox.style.display = 'none';
         render();
     }
-    mode = null; dragStart = null;
+    mode = null;
+    dragStart = null;
+    isPrepareToClone = false;
+    targetIdAtMouseDown = null;
     document.body.classList.remove('mode-pan');
 });
 
@@ -835,6 +876,40 @@ function exportJson() {
     a.href = url; a.download = `concept-canvas_${getTimestamp()}.json`; a.click(); URL.revokeObjectURL(url);
 }
 
+function cloneSelectionInPlace() {
+    // 🔴 记录历史
+    pushHistory();
+
+    const mapping = {};
+    const newNodes = [];
+    const newGroups = [];
+
+    // 1. 复制节点
+    state.nodes.forEach(n => {
+        if (state.selection.has(n.id)) {
+            const newId = uid();
+            mapping[n.id] = newId;
+            // 复制出一个一模一样的节点留在原位
+            newNodes.push({ ...n, id: newId });
+        }
+    });
+
+    // 2. 复制组
+    state.groups.forEach(g => {
+        if (state.selection.has(g.id)) {
+            const newId = uid();
+            const newGroup = { ...g, id: newId };
+            newGroup.memberIds = g.memberIds.map(mid => mapping[mid] || mid);
+            newGroups.push(newGroup);
+        }
+    });
+
+    // 3. 将新复制出来的“本体”加入 state，而“选中的”对象继续跟随鼠标移动
+    state.nodes.push(...newNodes);
+    state.groups.push(...newGroups);
+    // 注意：我们不需要改变 state.selection，
+    // 因为选中的还是原来的 ID，只是由于我们复制了新 ID 在原处，视觉上就像拖出了副本。
+}
 document.getElementById('btn-export').onclick = exportJson;
 document.getElementById('file-input').onchange = (e) => {
     const file = e.target.files[0]; if (!file) return;
