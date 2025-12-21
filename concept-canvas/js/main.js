@@ -1083,38 +1083,54 @@ function resetExportButton() {
 function expandExportOptions() {
     exportContainer.innerHTML = '';
 
-    // 创建 JSON 按钮
-    const btnJson = document.createElement('button');
-    btnJson.className = 'secondary';
-    btnJson.style.flex = '1';
-    btnJson.innerText = 'JSON';
-    btnJson.onclick = (e) => {
-        e.stopPropagation();
-        exportJson();
-        resetExportButton();
+    // 创建三个按钮的容器，让它们在原来一个按钮的位置内排列
+    // 这里的 gap 可以小一点
+    const subContainer = document.createElement('div');
+    subContainer.style.display = 'flex';
+    subContainer.style.gap = '4px';
+    subContainer.style.width = '100%';
+
+    const createSubBtn = (text, onClick) => {
+        const btn = document.createElement('button');
+        btn.className = 'secondary';
+        btn.style.flex = '1';
+        btn.style.padding = '10px 0';
+        btn.style.fontSize = '10px'; // 缩短文字
+        btn.innerText = text;
+        btn.onclick = (e) => { e.stopPropagation(); onClick(); resetExportButton(); };
+        return btn;
     };
 
-    // 创建 SVG 按钮
-    const btnSvg = document.createElement('button');
-    btnSvg.className = 'secondary';
-    btnSvg.style.flex = '1';
-    btnSvg.innerText = 'SVG';
-    btnSvg.onclick = (e) => {
-        e.stopPropagation();
-        exportToSVG();
-        resetExportButton();
-    };
+    subContainer.appendChild(createSubBtn('JSON', exportJson));
+    subContainer.appendChild(createSubBtn('SVG', exportToSVG));
+    subContainer.appendChild(createSubBtn('LINK', createShareLink));
 
-    exportContainer.appendChild(btnJson);
-    exportContainer.appendChild(btnSvg);
+    exportContainer.appendChild(subContainer);
 
-    // 开启计时器，3秒不点就缩回去
     clearTimeout(exportTimer);
-    exportTimer = setTimeout(() => {
-        resetExportButton();
-    }, 3000);
+    exportTimer = setTimeout(resetExportButton, 5000);
 }
 
+function createShareLink() {
+    const data = JSON.stringify({
+        nodes: state.nodes,
+        groups: state.groups,
+        links: state.links,
+        settings: state.settings
+    });
+
+    const compressed = LZString.compressToEncodedURIComponent(data);
+
+    // ✅ 修复本地文件路径问题
+    const baseUrl = window.location.href.split('#')[0];
+    const url = baseUrl + '#' + compressed;
+
+    navigator.clipboard.writeText(url).then(() => {
+        // ✅ 使用 Toast 代替 Alert
+        const msg = currentLang === 'zh' ? "链接已复制到剪贴板 ✨" : "Link copied to clipboard ✨";
+        showToast(msg);
+    });
+}
 // 初始绑定
 btnExport.onclick = expandExportOptions;
 
@@ -1153,6 +1169,67 @@ function applyHandDrawnStyle() {
     }
 }
 
+function loadFromUrl() {
+    const hash = window.location.hash.substring(1);
+    if (!hash) return false;
+
+    try {
+        // 1. 解压数据
+        const decompressed = LZString.decompressFromEncodedURIComponent(hash);
+        if (!decompressed) return false;
+
+        const data = JSON.parse(decompressed);
+
+        if (state.nodes.length > 0) {
+            pushHistory();
+        }
+        // 2. 载入状态
+        state.nodes = data.nodes || [];
+        state.groups = data.groups || [];
+        state.links = data.links || [];
+        if (data.settings) state.settings = { ...state.settings, ...data.settings };
+
+        // 3. 渲染
+        render();
+        applySettings();
+        applyHandDrawnStyle();
+
+        const msg = currentLang === 'zh'
+            ? "已从链接载入。按 Ctrl+Z 可恢复本地原图 ✨"
+            : "Loaded from link. Press Ctrl+Z to restore previous ✨";
+        showToast(msg);
+
+        // 4. 清除 hash（可选），让 URL 变回干净的样子，或者保留它作为备份
+        window.history.replaceState(null, null, window.location.pathname);
+
+        return true;
+    } catch (e) {
+        console.error("Failed to load data from URL", e);
+        return false;
+    }
+}
+
+// 在页面初始化（比如 window.onload 或 main.js 底部）调用
+if (!loadFromUrl()) {
+    loadData(); // 如果 URL 没数据，再尝试从本地存储加载
+}
+
+function showToast(message) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerText = message;
+    container.appendChild(toast);
+
+    // 触发动画
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // 3秒后移除
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+    }, 3000);
+}
 // 初始应用
 applyHandDrawnStyle();
 applySettings();
