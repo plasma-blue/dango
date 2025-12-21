@@ -99,7 +99,7 @@ document.getElementById('btn-lang').onclick = (e) => {
 // --- State & Config ---
 const state = {
     nodes: [], groups: [], links: [],
-    view: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1 },
+    view: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1.2 },
     selection: new Set(),
     clipboard: []
 };
