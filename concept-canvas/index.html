@@ -111,7 +111,9 @@
                 placeholder="输入想法... (空格/逗号/换行分隔)"></textarea>
             <button id="btn-add" class="primary" data-i18n="btn_add">✨ 生成节点 ✨</button>
             <div class="btn-row">
-                <button class="secondary" id="btn-export" data-i18n="btn_export">导出</button>
+                <div id="export-container" style="flex: 2; display: flex; gap: 6px;">
+                    <button class="secondary" id="btn-export" style="width: 100%;" data-i18n="btn_export">导出</button>
+                </div>
                 <button class="secondary" id="btn-import" data-i18n="btn_import"
                     onclick="document.getElementById('file-input').click()">导入</button>
                 <button class="secondary" id="btn-clear" title="Clear">🗑️</button>

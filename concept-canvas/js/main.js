@@ -25,6 +25,7 @@ const TRANSLATIONS = {
         settings_hide_grid: "隐藏网格点",
         help_tooltip: "帮助/快捷键",
         settings_alt_as_ctrl: "Alt 兼任 Ctrl",
+        btn_export: "导出",
     },
     en: {
         page_title: "✨ Concept Canvas",
@@ -51,6 +52,7 @@ const TRANSLATIONS = {
         settings_hide_grid: "Hide Grid Dots",
         help_tooltip: "Help / Shortcut",
         settings_alt_as_ctrl: "Alt as Ctrl modifier",
+        btn_export: "Export",
     }
 };
 
@@ -92,6 +94,9 @@ function updateI18n() {
     if (!clearConfirm) {
         document.getElementById('btn-clear').innerText = "🗑️";
     }
+    // 导出按钮
+    const mainBtn = document.querySelector('#export-container [data-i18n="btn_export"]');
+    if (mainBtn) mainBtn.innerText = texts.btn_export;
 
     localStorage.setItem(LS_LANG_KEY, currentLang);
 }
@@ -946,68 +951,146 @@ document.getElementById('file-input').onchange = (e) => {
 function exportToSVG() {
     if (state.nodes.length === 0) return;
 
-    // 1. 计算所有节点的包围盒
+    // 1. 计算所有元素（节点+组）的包围盒
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    state.nodes.forEach(n => {
-        minX = Math.min(minX, n.x);
-        minY = Math.min(minY, n.y);
-        maxX = Math.max(maxX, n.x + (n.w || 100));
-        maxY = Math.max(maxY, n.y + (n.h || 40));
+
+    const elements = [...state.nodes, ...state.groups];
+    elements.forEach(el => {
+        minX = Math.min(minX, el.x);
+        minY = Math.min(minY, el.y);
+        maxX = Math.max(maxX, el.x + (el.w || 100));
+        maxY = Math.max(maxY, el.y + (el.h || 40));
     });
 
-    const padding = 40;
+    const padding = 60; // 留白
     const width = maxX - minX + padding * 2;
     const height = maxY - minY + padding * 2;
     const offsetX = -minX + padding;
     const offsetY = -minY + padding;
 
-    // 2. 构建 SVG 字符串
-    // 获取当前的主题背景色和文本色
-    const bgColor = getComputedStyle(document.body).backgroundColor;
-    const textColor = getComputedStyle(document.body).color;
+    // 2. 获取当前主题的颜色样式
+    const bodyStyle = getComputedStyle(document.body);
+    const bgColor = bodyStyle.backgroundColor;
+    const groupBorderColor = bodyStyle.getPropertyValue('--group-border').trim();
+    const groupBgColor = bodyStyle.getPropertyValue('--group-bg').trim();
+    const linkColor = bodyStyle.getPropertyValue('--link-color').trim();
 
     let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
-    svgContent += `<rect width="100%" height="100%" fill="${bgColor}"/>`; // 背景
 
-    // 绘制连线
+    // --- 层级 1: 完整背景 ---
+    svgContent += `<rect width="100%" height="100%" fill="${bgColor}"/>`;
+
+    // --- 层级 2: 绘制 组 (Groups) ---
+    state.groups.forEach(g => {
+        svgContent += `<rect x="${g.x + offsetX}" y="${g.y + offsetY}" width="${g.w}" height="${g.h}" 
+            rx="20" ry="20" fill="${groupBgColor}" stroke="${groupBorderColor}" 
+            stroke-width="2" stroke-dasharray="5,5" />`;
+    });
+
+    // --- 层级 3: 绘制 连线 (Links) ---
     state.links.forEach(l => {
         const n1 = state.nodes.find(n => n.id === l.sourceId);
         const n2 = state.nodes.find(n => n.id === l.targetId);
         if (n1 && n2) {
-            const c1 = { x: n1.x + n1.w / 2 + offsetX, y: n1.y + n1.h / 2 + offsetY };
-            const c2 = { x: n2.x + n2.w / 2 + offsetX, y: n2.y + n2.h / 2 + offsetY };
-            svgContent += `<line x1="${c1.x}" y1="${c1.y}" x2="${c2.x}" y2="${c2.y}" stroke="#94a3b8" stroke-width="2" opacity="0.5" />`;
+            const c1 = { x: n1.x + (n1.w || 0) / 2 + offsetX, y: n1.y + (n1.h || 0) / 2 + offsetY };
+            const c2 = { x: n2.x + (n2.w || 0) / 2 + offsetX, y: n2.y + (n2.h || 0) / 2 + offsetY };
+            svgContent += `<line x1="${c1.x}" y1="${c1.y}" x2="${c2.x}" y2="${c2.y}" 
+                stroke="${linkColor}" stroke-width="2" opacity="0.5" />`;
         }
     });
 
-    // 绘制节点 (这里简化处理，SVG 里的 rect 和 text)
+    // --- 层级 4: 绘制 节点 (Nodes) ---
     state.nodes.forEach(n => {
-        const x = n.x + offsetX;
-        const y = n.y + offsetY;
-        const nodeColor = getComputedStyle(document.querySelector(`.node[data-id="${n.id}"]`)).backgroundColor;
-        const nodeBorder = getComputedStyle(document.querySelector(`.node[data-id="${n.id}"]`)).borderColor;
-        const nodeTextColor = getComputedStyle(document.querySelector(`.node[data-id="${n.id}"]`)).color;
+        const el = document.querySelector(`.node[data-id="${n.id}"]`);
+        if (!el) return;
+        const style = getComputedStyle(el);
+        const nodeBg = style.backgroundColor;
+        const nodeStroke = style.borderColor;
+        const nodeText = style.color;
 
         svgContent += `
-            <rect x="${x}" y="${y}" width="${n.w}" height="${n.h}" rx="12" ry="12" fill="${nodeColor}" stroke="${nodeBorder}" stroke-width="1" />
-            <text x="${x + n.w / 2}" y="${y + n.h / 2}" dominant-baseline="central" text-anchor="middle" font-family="sans-serif" font-size="14" fill="${nodeTextColor}">${n.text}</text>
+            <rect x="${n.x + offsetX}" y="${n.y + offsetY}" width="${n.w}" height="${n.h}" 
+                rx="12" ry="12" fill="${nodeBg}" stroke="${nodeStroke}" stroke-width="1" />
+            <text x="${n.x + n.w / 2 + offsetX}" y="${n.y + n.h / 2 + offsetY}" 
+                dominant-baseline="central" text-anchor="middle" 
+                font-family="sans-serif" font-size="14" font-weight="500" fill="${nodeText}">${escapeHtml(n.text)}</text>
         `;
     });
 
     svgContent += `</svg>`;
 
-    // 3. 触发下载
-    const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+    // 触发下载
+    downloadBlob(svgContent, `concept-canvas_${getTimestamp()}.svg`, 'image/svg+xml');
+}
+
+// 辅助：转义 HTML 特殊字符防止 SVG 报错
+function escapeHtml(text) {
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+
+// 辅助：下载函数
+function downloadBlob(content, filename, contentType) {
+    const blob = new Blob([content], { type: contentType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `concept-canvas_${getTimestamp()}.svg`;
-    a.click();
+    a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
 }
 
 document.getElementById('btn-export-svg').onclick = exportToSVG;
+const exportContainer = document.getElementById('export-container');
+const btnExport = document.getElementById('btn-export');
+let exportTimer = null;
 
+function resetExportButton() {
+    exportContainer.innerHTML = '';
+    // 重新创建初始的导出按钮
+    const btn = document.createElement('button');
+    btn.className = 'secondary';
+    btn.style.width = '100%';
+    btn.dataset.i18n = 'btn_export';
+    btn.innerText = TRANSLATIONS[currentLang].btn_export;
+    btn.onclick = expandExportOptions;
+    exportContainer.appendChild(btn);
+}
+
+function expandExportOptions() {
+    exportContainer.innerHTML = '';
+
+    // 创建 JSON 按钮
+    const btnJson = document.createElement('button');
+    btnJson.className = 'secondary';
+    btnJson.style.flex = '1';
+    btnJson.innerText = 'JSON';
+    btnJson.onclick = (e) => {
+        e.stopPropagation();
+        exportJson();
+        resetExportButton();
+    };
+
+    // 创建 SVG 按钮
+    const btnSvg = document.createElement('button');
+    btnSvg.className = 'secondary';
+    btnSvg.style.flex = '1';
+    btnSvg.innerText = 'SVG';
+    btnSvg.onclick = (e) => {
+        e.stopPropagation();
+        exportToSVG();
+        resetExportButton();
+    };
+
+    exportContainer.appendChild(btnJson);
+    exportContainer.appendChild(btnSvg);
+
+    // 开启计时器，3秒不点就缩回去
+    clearTimeout(exportTimer);
+    exportTimer = setTimeout(() => {
+        resetExportButton();
+    }, 3000);
+}
+
+// 初始绑定
+btnExport.onclick = expandExportOptions;
 applySettings();
 render();
 updateI18n();
