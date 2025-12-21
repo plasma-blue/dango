@@ -364,16 +364,31 @@ document.getElementById('btn-add').onclick = () => {
     const spacingY = 80;
 
     const existingTexts = new Set(state.nodes.map(n => n.text));
+    function parsePhrases(input) {
+        // 正则解释：
+        // "([^"]*)" -> 匹配双引号内容
+        // '([^']*)' -> 匹配单引号内容
+        // ([^\s,，\n]+) -> 匹配非空格/逗号/换行的普通字符
+        const regex = /"([^"]*)"|'([^']*)'|“([^”]*)”|‘([^’]*)’|([^\s,，\n]+)/g;
+        const result = [];
+        let match;
+        while ((match = regex.exec(input)) !== null) {
+            // match[1] 是双引号捕获，match[2] 是单引号，match[3] 是普通词
+            const phrase = match[1] || match[2] || match[3] || match[4] || match[5];
+            if (phrase && phrase.trim()) result.push(phrase.trim());
+        }
+        return result;
+    }
     let nodesToCreate = [];
 
     if (state.settings.preciseLayout) {
         // --- 精准映射逻辑 (回车换行) ---
         const lines = text.split('\n');
         lines.forEach((line, rowIndex) => {
-            const words = line.split(/[\s,，]+/).filter(w => w.trim().length > 0);
-            words.forEach((word, colIndex) => {
-                if (!existingTexts.has(word)) {
-                    nodesToCreate.push({ text: word, row: rowIndex, col: colIndex });
+            const phrases = parsePhrases(line); // 对每一行进行短语解析
+            phrases.forEach((phrase, colIndex) => {
+                if (!existingTexts.has(phrase)) {
+                    nodesToCreate.push({ text: phrase, row: rowIndex, col: colIndex });
                 }
             });
         });
@@ -399,8 +414,8 @@ document.getElementById('btn-add').onclick = () => {
         });
     } else {
         // --- 原有的自动流式逻辑 (5列) ---
-        const parts = text.split(/[\s,\n，]+/).filter(t => t.trim().length > 0);
-        const filteredParts = parts.filter(p => !existingTexts.has(p));
+        const phrases = parsePhrases(text); // 全局解析
+        const filteredParts = phrases.filter(p => !existingTexts.has(p));
 
         const colCount = Math.min(filteredParts.length, 5);
         const rowCount = Math.ceil(filteredParts.length / 5);
@@ -1037,7 +1052,6 @@ function downloadBlob(content, filename, contentType) {
     URL.revokeObjectURL(url);
 }
 
-document.getElementById('btn-export-svg').onclick = exportToSVG;
 const exportContainer = document.getElementById('export-container');
 const btnExport = document.getElementById('btn-export');
 let exportTimer = null;
