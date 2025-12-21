@@ -660,3 +660,65 @@ body.hide-grid {
 .hand-drawn-style textarea {
     font-family: 'Architects Daughter', 'LXGW WenKai Mono TC', cursive !important;
 }
+
+/* --- 空状态引导样式 --- */
+.empty-state {
+    position: absolute;
+    top: 70px;
+    /* 位于 UI 面板下方 */
+    left: 40px;
+    z-index: 0;
+    /* 放在节点底层 */
+    color: var(--select-color);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    display: none;
+    /* 默认隐藏，由 JS 控制 */
+}
+
+/* 当画布为空时显示 */
+body.is-empty .empty-state {
+    display: block;
+    opacity: 0.6;
+}
+
+.empty-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.arrow-svg {
+    width: 80px;
+    height: 80px;
+    transform: rotate(-10deg);
+    /* 增加一个微弱的呼吸动画 */
+    animation: arrow-bob 2s infinite ease-in-out;
+}
+
+.empty-state p {
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* 手绘风格适配 */
+.hand-drawn-style .empty-state p {
+    font-family: 'Architects Daughter', 'LXGW WenKai Mono TC', cursive !important;
+    font-size: 18px;
+}
+
+@keyframes arrow-bob {
+
+    0%,
+    100% {
+        transform: translate(0, 0) rotate(-10deg);
+    }
+
+    50% {
+        transform: translate(-5px, -5px) rotate(-15deg);
+    }
+}

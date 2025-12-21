@@ -27,6 +27,7 @@ const TRANSLATIONS = {
         settings_alt_as_ctrl: "Alt 兼任 Ctrl",
         btn_export: "导出",
         settings_hand_drawn: "手写风格 (需加载字体)",
+        empty_prompt: "输入想法，开启你的画布 ✨",
     },
     en: {
         page_title: "✨ Concept Canvas",
@@ -55,6 +56,7 @@ const TRANSLATIONS = {
         settings_alt_as_ctrl: "Alt as Ctrl modifier",
         btn_export: "Export",
         settings_hand_drawn: "Hand-drawn Style (Load fonts)",
+        empty_prompt: "Type ideas here to start ✨",
     }
 };
 
@@ -301,6 +303,11 @@ const els = {
 
 // --- Render System ---
 function render() {
+    if (state.nodes.length === 0) {
+        document.body.classList.add('is-empty');
+    } else {
+        document.body.classList.remove('is-empty');
+    }
     els.world.style.transform = `translate(${state.view.x}px, ${state.view.y}px) scale(${state.view.scale})`;
 
     els.connectionsLayer.innerHTML = '';

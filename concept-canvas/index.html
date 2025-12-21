@@ -122,6 +122,16 @@
     </div>
 
     <div id="canvas-container">
+        <div id="empty-notice" class="empty-state">
+            <div class="empty-content">
+                <svg class="arrow-svg" viewBox="0 0 100 100">
+                    <!-- 一个手绘感的弯箭头路径 -->
+                    <path d="M80,80 C70,40 40,30 20,20 M20,20 L35,22 M20,20 L22,35" fill="none" stroke="currentColor"
+                        stroke-width="3" stroke-linecap="round" />
+                </svg>
+                <p data-i18n="empty_prompt">输入第一个想法，开启你的画布</p>
+            </div>
+        </div>
         <div id="world">
             <svg id="connections-layer" class="connections"></svg>
             <div id="groups-layer"></div>
