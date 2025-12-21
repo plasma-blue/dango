@@ -738,7 +738,7 @@ window.addEventListener('keydown', e => {
 
     if (e.ctrlKey && e.code === 'KeyS') { e.preventDefault(); exportJson(); }
 
-    if (e.altKey && !e.ctrlKey) {
+    if (e.altKey) {
         pushHistory(); // Alignment changes state
         switch (e.code) {
             case 'KeyA': e.preventDefault(); alignSelection('left'); break;
@@ -746,7 +746,7 @@ window.addEventListener('keydown', e => {
             case 'KeyW': e.preventDefault(); alignSelection('top'); break;
             case 'KeyS': e.preventDefault(); alignSelection('bottom'); break;
             case 'KeyH': e.preventDefault(); e.shiftKey ? distributeSelection('h') : alignSelection('centerX'); break;
-            case 'KeyV': e.preventDefault(); e.shiftKey ? distributeSelection('v') : alignSelection('centerY'); break;
+            case 'KeyJ': e.preventDefault(); e.shiftKey ? distributeSelection('v') : alignSelection('centerY'); break;
         }
     }
 });
