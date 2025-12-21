@@ -1,7 +1,7 @@
 
 const TRANSLATIONS = {
     zh: {
-        page_title: "✨ 概念画板",
+        page_title: "概念画板",
         brand_name: "概念画板",
         lang_toggle: "EN",
         lang_tooltip: "切换至英文",
@@ -30,7 +30,7 @@ const TRANSLATIONS = {
         empty_prompt: "输入想法，开启你的画布 ✨",
     },
     en: {
-        page_title: "✨ Concept Canvas",
+        page_title: "Concept Canvas",
         brand_name: "Concept Canvas",
         lang_toggle: "中",
         lang_tooltip: "Switch to Chinese",
