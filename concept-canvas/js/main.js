@@ -24,6 +24,7 @@ const TRANSLATIONS = {
         settings_precise: "精准映射 (按行布局)",
         settings_hide_grid: "隐藏网格点",
         help_tooltip: "帮助/快捷键",
+        settings_alt_as_ctrl: "Alt 兼任 Ctrl",
     },
     en: {
         page_title: "✨ Concept Canvas",
@@ -49,6 +50,7 @@ const TRANSLATIONS = {
         settings_precise: "Precise Mapping (Line-based)",
         settings_hide_grid: "Hide Grid Dots",
         help_tooltip: "Help / Shortcut",
+        settings_alt_as_ctrl: "Alt as Ctrl modifier",
     }
 };
 
@@ -208,6 +210,7 @@ themeBtn.onclick = (e) => {
 state.settings = {
     preciseLayout: localStorage.getItem('cc-precise-layout') === 'true',
     hideGrid: localStorage.getItem('cc-hide-grid') === 'true',
+    altAsCtrl: localStorage.getItem('cc-alt-as-ctrl') === 'true'
 };
 
 // 齿轮按钮点击
@@ -215,11 +218,12 @@ const btnSettings = document.getElementById('btn-settings');
 const modalSettings = document.getElementById('settings-modal');
 const checkPrecise = document.getElementById('check-precise');
 const checkHideGrid = document.getElementById('check-hide-grid');
+const checkAltAsCtrl = document.getElementById('check-alt-as-ctrl');
 
 function applySettings() {
     checkPrecise.checked = state.settings.preciseLayout;
-
     checkHideGrid.checked = state.settings.hideGrid;
+    checkAltAsCtrl.checked = state.settings.altAsCtrl;
     // 根据状态给 body 添加或移除类
     document.body.classList.toggle('hide-grid', state.settings.hideGrid);
 }
@@ -234,6 +238,16 @@ checkHideGrid.onchange = (e) => {
     localStorage.setItem('cc-hide-grid', e.target.checked);
     document.body.classList.toggle('hide-grid', state.settings.hideGrid);
 };
+
+checkAltAsCtrl.onchange = (e) => {
+    state.settings.altAsCtrl = e.target.checked;
+    localStorage.setItem('cc-alt-as-ctrl', e.target.checked);
+};
+
+function isModifier(e) {
+    // 如果开启了选项，Alt 也可以作为辅助键
+    return e.ctrlKey || e.metaKey || (state.settings.altAsCtrl && e.altKey);
+}
 
 btnSettings.onclick = (e) => {
     e.stopPropagation(); // 阻止冒泡，防止触发 window.onclick
@@ -503,7 +517,7 @@ els.container.addEventListener('mousedown', e => {
             targetAlreadySelectedAtStart = state.selection.has(id);
             hasMovedDuringDrag = false; // 重置移动标记
 
-            if (e.ctrlKey) {
+            if (isModifier(e)) {
                 // Ctrl 模式：先确保它在选择集里，方便拖动或克隆
                 state.selection.add(id);
                 isPrepareToClone = true;
@@ -525,7 +539,7 @@ els.container.addEventListener('mousedown', e => {
 
             dragStart = { x: worldPos.x, y: worldPos.y, initialPos: getSelectionPositions() };
         } else {
-            if (!e.ctrlKey && !e.shiftKey) state.selection.clear();
+            if (!isModifier(e) && !e.shiftKey) state.selection.clear();
             mode = 'box'; dragStart = { x: e.clientX, y: e.clientY };
             els.selectBox.style.display = 'block';
             updateSelectBox(e.clientX, e.clientY, e.clientX, e.clientY);
@@ -583,7 +597,7 @@ els.container.addEventListener('mousemove', e => {
 els.container.addEventListener('mouseup', e => {
     if (mode === 'move') {
         // --- 修复多次单选的关键逻辑 ---
-        if (!hasMovedDuringDrag && e.ctrlKey && targetAlreadySelectedAtStart) {
+        if (!hasMovedDuringDrag && isModifier(e) && targetAlreadySelectedAtStart) {
             // 如果是按住 Ctrl 点了一个已经选中的物体，且中途没移动
             // 说明用户是想“取消选择”这个物体
             state.selection.delete(targetIdAtMouseDown);
@@ -620,7 +634,7 @@ els.container.addEventListener('mouseup', e => {
 
 els.container.addEventListener('wheel', e => {
     e.preventDefault();
-    if (e.ctrlKey) {
+    if (isModifier(e)) {
         const factor = 1 + ((e.deltaY > 0 ? -1 : 1) * 0.1);
         const worldX = (e.clientX - state.view.x) / state.view.scale;
         const worldY = (e.clientY - state.view.y) / state.view.scale;
@@ -658,30 +672,31 @@ els.container.addEventListener('dblclick', e => {
 });
 
 window.addEventListener('keydown', e => {
+    // 如果正在输入，跳过
     if (e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
     keys[e.code] = true;
 
     if (e.code === 'Space') { e.preventDefault(); document.body.classList.add('mode-space'); }
 
     // 🆕 Undo / Redo Shortcuts
-    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') {
+    if (isModifier(e) && e.code === 'KeyZ') {
         e.preventDefault();
         if (e.shiftKey) redo(); else undo();
         return;
     }
     // Redo alternative (Ctrl+Y)
-    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY') {
+    if (isModifier(e) && e.code === 'KeyY') {
         e.preventDefault(); redo(); return;
     }
 
     // Actions that change state need pushHistory()
-    if (e.ctrlKey && e.code === 'KeyG' && !e.shiftKey) { e.preventDefault(); pushHistory(); createGroup(); }
-    if (e.ctrlKey && e.shiftKey && e.code === 'KeyG') { e.preventDefault(); pushHistory(); dissolveGroup(); }
-    if (e.ctrlKey && e.code === 'KeyL') { e.preventDefault(); pushHistory(); toggleLink(); }
+    if (isModifier(e) && e.code === 'KeyG' && !e.shiftKey) { e.preventDefault(); pushHistory(); createGroup(); }
+    if (isModifier(e) && e.shiftKey && e.code === 'KeyG') { e.preventDefault(); pushHistory(); dissolveGroup(); }
+    if (isModifier(e) && e.code === 'KeyL') { e.preventDefault(); pushHistory(); toggleLink(); }
     if (e.code === 'Delete') { pushHistory(); deleteSelection(); }
 
-    if (e.ctrlKey && e.code === 'KeyC') { e.preventDefault(); copySelection(); }
-    if (e.ctrlKey && e.code === 'KeyV') { e.preventDefault(); pushHistory(); pasteClipboard(); }
+    if (isModifier(e) && e.code === 'KeyC') { e.preventDefault(); copySelection(); }
+    if (isModifier(e) && e.code === 'KeyV') { e.preventDefault(); pushHistory(); pasteClipboard(); }
 
     // Nudge (also changes state)
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code) && !e.altKey) {
