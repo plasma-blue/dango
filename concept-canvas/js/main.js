@@ -26,6 +26,7 @@ const TRANSLATIONS = {
         help_tooltip: "帮助/快捷键",
         settings_alt_as_ctrl: "Alt 兼任 Ctrl",
         btn_export: "导出",
+        settings_hand_drawn: "手写风格 (需加载字体)",
     },
     en: {
         page_title: "✨ Concept Canvas",
@@ -53,6 +54,7 @@ const TRANSLATIONS = {
         help_tooltip: "Help / Shortcut",
         settings_alt_as_ctrl: "Alt as Ctrl modifier",
         btn_export: "Export",
+        settings_hand_drawn: "Hand-drawn Style (Load fonts)",
     }
 };
 
@@ -215,7 +217,8 @@ themeBtn.onclick = (e) => {
 state.settings = {
     preciseLayout: localStorage.getItem('cc-precise-layout') === 'true',
     hideGrid: localStorage.getItem('cc-hide-grid') === 'true',
-    altAsCtrl: localStorage.getItem('cc-alt-as-ctrl') === 'true'
+    altAsCtrl: localStorage.getItem('cc-alt-as-ctrl') === 'true',
+    handDrawn: localStorage.getItem('cc-hand-drawn') === 'true'
 };
 
 // 齿轮按钮点击
@@ -224,11 +227,13 @@ const modalSettings = document.getElementById('settings-modal');
 const checkPrecise = document.getElementById('check-precise');
 const checkHideGrid = document.getElementById('check-hide-grid');
 const checkAltAsCtrl = document.getElementById('check-alt-as-ctrl');
+const checkHandDrawn = document.getElementById('check-hand-drawn');
 
 function applySettings() {
     checkPrecise.checked = state.settings.preciseLayout;
     checkHideGrid.checked = state.settings.hideGrid;
     checkAltAsCtrl.checked = state.settings.altAsCtrl;
+    checkHandDrawn.checked = state.settings.handDrawn;
     // 根据状态给 body 添加或移除类
     document.body.classList.toggle('hide-grid', state.settings.hideGrid);
 }
@@ -1105,6 +1110,44 @@ function expandExportOptions() {
 
 // 初始绑定
 btnExport.onclick = expandExportOptions;
+
+state.settings.handDrawn = localStorage.getItem('cc-hand-drawn') === 'true';
+
+let fontsLoaded = false;
+
+// 2. 动态加载字体函数
+function loadHandDrawnFonts() {
+    if (fontsLoaded) return;
+
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    // 引入 Architects Daughter (英) 和 霞鹜文楷 (中)
+    // 使用国内 CDN 镜像或 Google Fonts (霞鹜文楷在 Google Fonts 上叫 LXGW WenKai)
+    link.href = 'https://fonts.googleapis.com/css2?family=Architects+Daughter&family=LXGW+WenKai+Mono+TC&display=swap';
+
+    document.head.appendChild(link);
+    fontsLoaded = true;
+    console.log("Hand-drawn fonts loading started...");
+}
+
+// 3. 绑定开关
+checkHandDrawn.onchange = (e) => {
+    state.settings.handDrawn = e.target.checked;
+    localStorage.setItem('cc-hand-drawn', e.target.checked);
+    applyHandDrawnStyle();
+};
+
+function applyHandDrawnStyle() {
+    if (state.settings.handDrawn) {
+        loadHandDrawnFonts();
+        document.body.classList.add('hand-drawn-style');
+    } else {
+        document.body.classList.remove('hand-drawn-style');
+    }
+}
+
+// 初始应用
+applyHandDrawnStyle();
 applySettings();
 render();
 updateI18n();

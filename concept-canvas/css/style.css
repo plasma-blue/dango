@@ -641,3 +641,22 @@ input[type="checkbox"] {
 body.hide-grid {
     background-image: none !important;
 }
+
+/* --- 手写风格全局样式 --- */
+.hand-drawn-style {
+    /* 英文使用 Architects Daughter，中文自动回退到 LXGW WenKai Mono TC */
+    font-family: 'Architects Daughter', 'LXGW WenKai Mono TC', cursive !important;
+}
+
+/* 配合手写字体，节点可以稍微增加一点点倾斜感 */
+.hand-drawn-style .node {
+    letter-spacing: 0.05em;
+    /* 给边框增加一点点不规则圆角，增加“手绘感” */
+    border-radius: 255px 15px 225px 15px/15px 225px 15px 255px !important;
+}
+
+/* 按钮也同步变换字体 */
+.hand-drawn-style button,
+.hand-drawn-style textarea {
+    font-family: 'Architects Daughter', 'LXGW WenKai Mono TC', cursive !important;
+}
