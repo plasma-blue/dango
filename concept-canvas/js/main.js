@@ -943,6 +943,71 @@ document.getElementById('file-input').onchange = (e) => {
     reader.readAsText(file); e.target.value = '';
 };
 
+function exportToSVG() {
+    if (state.nodes.length === 0) return;
+
+    // 1. 计算所有节点的包围盒
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    state.nodes.forEach(n => {
+        minX = Math.min(minX, n.x);
+        minY = Math.min(minY, n.y);
+        maxX = Math.max(maxX, n.x + (n.w || 100));
+        maxY = Math.max(maxY, n.y + (n.h || 40));
+    });
+
+    const padding = 40;
+    const width = maxX - minX + padding * 2;
+    const height = maxY - minY + padding * 2;
+    const offsetX = -minX + padding;
+    const offsetY = -minY + padding;
+
+    // 2. 构建 SVG 字符串
+    // 获取当前的主题背景色和文本色
+    const bgColor = getComputedStyle(document.body).backgroundColor;
+    const textColor = getComputedStyle(document.body).color;
+
+    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+    svgContent += `<rect width="100%" height="100%" fill="${bgColor}"/>`; // 背景
+
+    // 绘制连线
+    state.links.forEach(l => {
+        const n1 = state.nodes.find(n => n.id === l.sourceId);
+        const n2 = state.nodes.find(n => n.id === l.targetId);
+        if (n1 && n2) {
+            const c1 = { x: n1.x + n1.w / 2 + offsetX, y: n1.y + n1.h / 2 + offsetY };
+            const c2 = { x: n2.x + n2.w / 2 + offsetX, y: n2.y + n2.h / 2 + offsetY };
+            svgContent += `<line x1="${c1.x}" y1="${c1.y}" x2="${c2.x}" y2="${c2.y}" stroke="#94a3b8" stroke-width="2" opacity="0.5" />`;
+        }
+    });
+
+    // 绘制节点 (这里简化处理，SVG 里的 rect 和 text)
+    state.nodes.forEach(n => {
+        const x = n.x + offsetX;
+        const y = n.y + offsetY;
+        const nodeColor = getComputedStyle(document.querySelector(`.node[data-id="${n.id}"]`)).backgroundColor;
+        const nodeBorder = getComputedStyle(document.querySelector(`.node[data-id="${n.id}"]`)).borderColor;
+        const nodeTextColor = getComputedStyle(document.querySelector(`.node[data-id="${n.id}"]`)).color;
+
+        svgContent += `
+            <rect x="${x}" y="${y}" width="${n.w}" height="${n.h}" rx="12" ry="12" fill="${nodeColor}" stroke="${nodeBorder}" stroke-width="1" />
+            <text x="${x + n.w / 2}" y="${y + n.h / 2}" dominant-baseline="central" text-anchor="middle" font-family="sans-serif" font-size="14" fill="${nodeTextColor}">${n.text}</text>
+        `;
+    });
+
+    svgContent += `</svg>`;
+
+    // 3. 触发下载
+    const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `concept-canvas_${getTimestamp()}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+document.getElementById('btn-export-svg').onclick = exportToSVG;
+
 applySettings();
 render();
 updateI18n();
