@@ -1,8 +1,8 @@
 
 const TRANSLATIONS = {
     zh: {
-        page_title: "概念画板",
-        brand_name: "概念画板",
+        page_title: "Dango 画板",
+        brand_name: "Dango 画板",
         lang_toggle: "EN",
         lang_tooltip: "切换至英文",
         input_placeholder: "输入想法... (空格/逗号/换行分隔)",
@@ -30,8 +30,8 @@ const TRANSLATIONS = {
         empty_prompt: "输入想法，开启你的画布 ✨",
     },
     en: {
-        page_title: "Concept Canvas",
-        brand_name: "Concept Canvas",
+        page_title: "Dango Whiteboard",
+        brand_name: "Dango Whiteboard",
         lang_toggle: "中",
         lang_tooltip: "Switch to Chinese",
         input_placeholder: "Enter ideas... (Space/Comma/Newline)",
