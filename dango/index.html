@@ -108,18 +108,25 @@
         </div>
 
         <div id="ui-content">
-            <textarea id="input-text" data-i18n-placeholder="input_placeholder"
-                placeholder="输入想法... (空格/逗号/换行分隔)"></textarea>
+            <textarea id="input-text" data-i18n-placeholder="input_placeholder" placeholder="输入想法... (空格/逗号/换行分隔)"></textarea>
             <button id="btn-add" class="primary" data-i18n="btn_add">✨ 生成节点 ✨</button>
-            <div class="btn-row">
-                <div id="export-container" style="flex: 1; display: flex; gap: 6px;">
-                    <button class="secondary" id="btn-export" style="width: 100%;" data-i18n="btn_export">导出</button>
+            <div class="action-stack" id="action-stack">
+                <!-- 第一层：默认按钮 -->
+                <div class="btn-row stack-front">
+                    <button class="secondary" id="btn-export-main" data-i18n="btn_export">导出</button>
+                    <button class="secondary" id="btn-import-main" data-i18n="btn_import" onclick="document.getElementById('file-input').click()">导入</button>
+                    <button class="secondary" id="btn-clear" title="Clear">🗑️</button>
                 </div>
-                <button class="secondary" id="btn-import" data-i18n="btn_import"
-                    onclick="document.getElementById('file-input').click()">导入</button>
-                <button class="secondary" id="btn-clear" title="Clear">🗑️</button>
-                <input type="file" id="file-input" style="display:none" accept=".json">
+                
+                <!-- 第二层：导出选项（完全镜像第一层的结构） -->
+                <div class="btn-row stack-back">
+                    <!-- LINK 放在第一个，完美承接“导出”按钮的双击 -->
+                    <button class="secondary" id="opt-link">LINK</button> 
+                    <button class="secondary" id="opt-json">JSON</button>
+                    <button class="secondary" id="opt-svg">SVG</button>
+                </div>
             </div>
+            <input type="file" id="file-input" style="display:none" accept=".json">
         </div>
     </div>
     <div id="toast-container"></div>

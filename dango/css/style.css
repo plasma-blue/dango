@@ -773,3 +773,42 @@ body.is-empty .empty-state {
         transform: translate(-5px, -5px) rotate(-15deg);
     }
 }
+
+/* --- 动作堆叠容器 --- */
+.action-stack {
+    position: relative;
+    height: 38px; /* 与按钮高度保持一致 */
+    overflow: hidden;
+    perspective: 1000px;
+}
+
+.stack-front, .stack-back {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    gap: 10px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 初始状态：正面在场，反面在下方旋转 */
+.stack-back {
+    transform: translateY(100%) rotateX(-90deg);
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* 激活导出状态 */
+.action-stack.is-exporting .stack-front {
+    transform: translateY(-100%) rotateX(90deg);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.action-stack.is-exporting .stack-back {
+    transform: translateY(0) rotateX(0deg);
+    opacity: 1;
+    pointer-events: auto;
+}

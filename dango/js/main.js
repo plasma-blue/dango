@@ -974,7 +974,7 @@ function cloneSelectionInPlace() {
     // 原来的节点（带线的）会留在原地，鼠标现在拖拽的是新生成的副本
     state.selection = newSelection;
 }
-document.getElementById('btn-export').onclick = exportJson;
+// document.getElementById('btn-export').onclick = exportJson;
 document.getElementById('file-input').onchange = (e) => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
@@ -1079,52 +1079,52 @@ function downloadBlob(content, filename, contentType) {
     URL.revokeObjectURL(url);
 }
 
-const exportContainer = document.getElementById('export-container');
-const btnExport = document.getElementById('btn-export');
-let exportTimer = null;
 
-function resetExportButton() {
-    exportContainer.innerHTML = '';
-    // 重新创建初始的导出按钮
-    const btn = document.createElement('button');
-    btn.className = 'secondary';
-    btn.style.width = '100%';
-    btn.dataset.i18n = 'btn_export';
-    btn.innerText = TRANSLATIONS[currentLang].btn_export;
-    btn.onclick = expandExportOptions;
-    exportContainer.appendChild(btn);
+const actionStack = document.getElementById('action-stack');
+const btnExportMain = document.getElementById('btn-export-main');
+let exportResetTimer = null;
+
+// 面板重置函数
+function resetActionStack() {
+    actionStack.classList.remove('is-exporting');
+    clearTimeout(exportResetTimer);
 }
 
-function expandExportOptions() {
-    exportContainer.innerHTML = '';
+// 点击“导出”：翻转
+btnExportMain.onclick = (e) => {
+    e.stopPropagation();
+    actionStack.classList.add('is-exporting');
+    
+    // 5秒自动重置（用户无操作时自动退回）
+    clearTimeout(exportResetTimer);
+    exportResetTimer = setTimeout(resetActionStack, 5000);
+};
 
-    // 创建三个按钮的容器，让它们在原来一个按钮的位置内排列
-    // 这里的 gap 可以小一点
-    const subContainer = document.createElement('div');
-    subContainer.style.display = 'flex';
-    subContainer.style.gap = '4px';
-    subContainer.style.width = '100%';
+// 具体的选项逻辑
+document.getElementById('opt-json').onclick = (e) => {
+    e.stopPropagation();
+    exportJson();
+    resetActionStack(); // 点击即消失
+};
 
-    const createSubBtn = (text, onClick) => {
-        const btn = document.createElement('button');
-        btn.className = 'secondary';
-        btn.style.flex = '1';
-        btn.style.padding = '10px 0';
-        btn.style.fontSize = '10px'; // 缩短文字
-        btn.innerText = text;
-        btn.onclick = (e) => { e.stopPropagation(); onClick(); resetExportButton(); };
-        return btn;
-    };
+document.getElementById('opt-svg').onclick = (e) => {
+    e.stopPropagation();
+    exportToSVG();
+    resetActionStack(); // 点击即消失
+};
 
-    subContainer.appendChild(createSubBtn('JSON', exportJson));
-    subContainer.appendChild(createSubBtn('SVG', exportToSVG));
-    subContainer.appendChild(createSubBtn('LINK', createShareLink));
+document.getElementById('opt-link').onclick = (e) => {
+    e.stopPropagation();
+    createShareLink();
+    resetActionStack(); // 你的直觉：LINK 点击后也立即消失
+};
 
-    exportContainer.appendChild(subContainer);
-
-    clearTimeout(exportTimer);
-    exportTimer = setTimeout(resetExportButton, 5000);
-}
+// 补充：点击页面其他地方也重置面板
+window.addEventListener('click', () => {
+    if (actionStack.classList.contains('is-exporting')) {
+        resetActionStack();
+    }
+});
 
 function createShareLink() {
     const data = JSON.stringify({
@@ -1146,9 +1146,6 @@ function createShareLink() {
         showToast(msg);
     });
 }
-// 初始绑定
-btnExport.onclick = expandExportOptions;
-
 state.settings.handDrawn = localStorage.getItem('cc-hand-drawn') === 'true';
 
 let fontsLoaded = false;
