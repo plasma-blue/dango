@@ -1,8 +1,8 @@
 
 const TRANSLATIONS = {
     zh: {
-        page_title: "Dango 画板：组织灵感，一目了然",
-        brand_name: "Dango 画板",
+        page_title: "团子画板：组织灵感，一目了然",
+        brand_name: "团子画板",
         lang_toggle: "EN",
         lang_tooltip: "切换至英文",
         input_placeholder: "输入想法... (空格/逗号/换行分隔)",
@@ -49,6 +49,12 @@ const TRANSLATIONS = {
         help_link: "连线 / 断线",
         help_align: "方向对齐",
         help_color: "切换颜色",
+        about_title: "关于",
+        feedback: "反馈",
+        about_desc: "简单、优雅的概念关系可视化工具。\n\n组织灵感，一目了然。",
+        star_on_github: "在 GitHub 上点星支持",
+        blog_link: "开发博客",
+        buy_coffee: "请喝咖啡",
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -99,6 +105,12 @@ const TRANSLATIONS = {
         help_link: "Link / Unlink",
         help_align: "Align Direction",
         help_color: "Change Color",
+        about_title: "About",
+        feedback: "Feedback",
+        about_desc: "Drop a nugget, get organized.",
+        star_on_github: "Star on GitHub",
+        blog_link: "Dev Blog",
+        buy_coffee: "Buy me a coffee",
     }
 };
 
@@ -111,7 +123,56 @@ const LS_LANG_KEY = 'cc-lang';
 // 优先从本地缓存读取，其次检测浏览器语言（只支持中英，其余默认英）
 let currentLang = localStorage.getItem(LS_LANG_KEY) ||
     (navigator.language.startsWith('zh') ? 'zh' : 'en');
+// 2. 关于弹窗逻辑
+const aboutOverlay = document.getElementById('about-overlay');
+const btnTriggerAbout = document.getElementById('trigger-about');
+const btnCloseAbout = document.getElementById('btn-close-about');
 
+// 打开关于
+btnTriggerAbout.onclick = (e) => {
+    e.stopPropagation();
+    
+    // 1. 关闭帮助菜单的显示状态
+    els.helpModal.classList.remove('show');
+    els.btnHelp.classList.remove('active');
+    
+    // 2. ✨ 核心修复：让按钮失去焦点
+    // 这会打破 CSS 的 #ui-layer:focus-within 规则，
+    // 导致左上角的大面板自动缩回成一个小胶囊
+    btnTriggerAbout.blur(); 
+    
+    // 3. 打开关于弹窗
+    aboutOverlay.classList.add('show');
+};
+
+// 关闭关于
+function closeAbout() {
+    aboutOverlay.classList.remove('show');
+}
+btnCloseAbout.onclick = closeAbout;
+aboutOverlay.onclick = (e) => {
+    // 点击遮罩层关闭
+    if (e.target === aboutOverlay) closeAbout();
+};
+
+// 按 ESC 关闭所有弹窗
+window.addEventListener('keydown', e => {
+    // ... 原有代码 ...
+    if (e.code === 'Escape') {
+        // 依次关闭：关于 -> 设置/帮助 -> 选中
+        if (aboutOverlay.classList.contains('show')) {
+            closeAbout();
+        } else if (els.helpModal.classList.contains('show') || modalSettings.classList.contains('show')) {
+            els.helpModal.classList.remove('show');
+            els.btnHelp.classList.remove('active');
+            modalSettings.classList.remove('show');
+            btnSettings.classList.remove('active');
+        } else {
+            state.selection.clear();
+            render();
+        }
+    }
+});
 function updateI18n() {
     const texts = TRANSLATIONS[currentLang];
 
