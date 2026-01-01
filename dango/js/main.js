@@ -177,6 +177,74 @@ window.addEventListener('keydown', e => {
         }
     }
 });
+
+function createNodesFromInput() {
+    const text = els.input.value;
+    if (!text.trim()) return;
+
+    pushHistory();
+
+    const centerX = (window.innerWidth / 2 - state.view.x) / state.view.scale;
+    const centerY = (window.innerHeight / 2 - state.view.y) / state.view.scale;
+    const spacingX = 140;
+    const spacingY = 80;
+
+    function parsePhrases(input) {
+        const regex = /"([^"]*)"|'([^']*)'|“([^”]*)”|‘([^’]*)’|([^\s,，\n]+)/g;
+        const result = [];
+        let match;
+        while ((match = regex.exec(input)) !== null) {
+            const phrase = match[1] || match[2] || match[3] || match[4] || match[5];
+            if (phrase && phrase.trim()) result.push(phrase.trim());
+        }
+        return result;
+    }
+
+    let nodesToCreate = [];
+
+    if (state.settings.preciseLayout) {
+        const lines = text.split('\n');
+        lines.forEach((line, rowIndex) => {
+            const phrases = parsePhrases(line);
+            phrases.forEach((phrase, colIndex) => {
+                nodesToCreate.push({ text: phrase, row: rowIndex, col: colIndex });
+            });
+        });
+
+        if (nodesToCreate.length === 0) return;
+        const maxRow = Math.max(...nodesToCreate.map(n => n.row));
+        const maxCol = Math.max(...nodesToCreate.map(n => n.col));
+        const startX = centerX - (maxCol * spacingX) / 2 - 50;
+        const startY = centerY - (maxRow * spacingY) / 2 - 20;
+
+        nodesToCreate.forEach(n => {
+            state.nodes.push({
+                id: uid(), text: n.text,
+                x: startX + n.col * spacingX, y: startY + n.row * spacingY,
+                w: 0, h: 0, color: 'c-white'
+            });
+        });
+    } else {
+        const phrases = parsePhrases(text); 
+        const colCount = Math.min(phrases.length, 5);
+        const rowCount = Math.ceil(phrases.length / 5);
+        const startX = centerX - ((colCount - 1) * spacingX) / 2 - 50;
+        const startY = centerY - ((rowCount - 1) * spacingY) / 2 - 20;
+
+        phrases.forEach((str, index) => {
+            state.nodes.push({
+                id: uid(), text: str,
+                x: startX + (index % 5) * spacingX, y: startY + Math.floor(index / 5) * spacingY,
+                w: 0, h: 0, color: 'c-white'
+            });
+        });
+    }
+
+    els.input.value = '';
+    render();
+}
+
+
 function updateI18n() {
     const texts = TRANSLATIONS[currentLang];
 
@@ -538,88 +606,15 @@ function renderGroup(el, group) {
 function getNodeCenter(n) { return { x: n.x + (n.w || 0) / 2, y: n.y + (n.h || 0) / 2 }; }
 
 // --- Interactions ---
-document.getElementById('btn-add').onclick = () => {
-    const text = els.input.value;
-    if (!text.trim()) return;
+document.getElementById('btn-add').onclick = createNodesFromInput;
 
-    pushHistory();
-
-    const centerX = (window.innerWidth / 2 - state.view.x) / state.view.scale;
-    const centerY = (window.innerHeight / 2 - state.view.y) / state.view.scale;
-    const spacingX = 140;
-    const spacingY = 80;
-
-    // const existingTexts = new Set(state.nodes.map(n => n.text));
-    function parsePhrases(input) {
-        // 正则解释：
-        // "([^"]*)" -> 匹配双引号内容
-        // '([^']*)' -> 匹配单引号内容
-        // ([^\s,，\n]+) -> 匹配非空格/逗号/换行的普通字符
-        const regex = /"([^"]*)"|'([^']*)'|“([^”]*)”|‘([^’]*)’|([^\s,，\n]+)/g;
-        const result = [];
-        let match;
-        while ((match = regex.exec(input)) !== null) {
-            // match[1] 是双引号捕获，match[2] 是单引号，match[3] 是普通词
-            const phrase = match[1] || match[2] || match[3] || match[4] || match[5];
-            if (phrase && phrase.trim()) result.push(phrase.trim());
-        }
-        return result;
+els.input.addEventListener('keydown', (e) => {
+    // 识别 Ctrl + Enter (Windows) 或 Cmd + Enter (Mac)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault(); // 阻止输入框换行
+        createNodesFromInput();
     }
-    let nodesToCreate = [];
-
-    if (state.settings.preciseLayout) {
-        // --- 精准映射逻辑 (回车换行) ---
-        const lines = text.split('\n');
-        lines.forEach((line, rowIndex) => {
-            const phrases = parsePhrases(line); // 对每一行进行短语解析
-            phrases.forEach((phrase, colIndex) => {
-                // if (!existingTexts.has(phrase)) {
-                nodesToCreate.push({ text: phrase, row: rowIndex, col: colIndex });
-                // }
-            });
-        });
-
-        if (nodesToCreate.length === 0) return;
-
-        // 计算矩阵包围盒以便居中
-        const maxRow = Math.max(...nodesToCreate.map(n => n.row));
-        const rows = [...new Set(nodesToCreate.map(n => n.row))].sort((a, b) => a - b);
-
-        // 我们需要找出每一行实际有多少个词来辅助居中（这里简化处理，按整体最大列宽居中）
-        const maxCol = Math.max(...nodesToCreate.map(n => n.col));
-
-        const startX = centerX - (maxCol * spacingX) / 2 - 50;
-        const startY = centerY - (maxRow * spacingY) / 2 - 20;
-
-        nodesToCreate.forEach(n => {
-            state.nodes.push({
-                id: uid(), text: n.text,
-                x: startX + n.col * spacingX, y: startY + n.row * spacingY,
-                w: 0, h: 0, color: 'c-white'
-            });
-        });
-    } else {
-        // --- 原有的自动流式逻辑 (5列) ---
-        const phrases = parsePhrases(text); // 全局解析
-        const filteredParts = phrases // .filter(p => !existingTexts.has(p));
-
-        const colCount = Math.min(filteredParts.length, 5);
-        const rowCount = Math.ceil(filteredParts.length / 5);
-        const startX = centerX - ((colCount - 1) * spacingX) / 2 - 50;
-        const startY = centerY - ((rowCount - 1) * spacingY) / 2 - 20;
-
-        filteredParts.forEach((str, index) => {
-            state.nodes.push({
-                id: uid(), text: str,
-                x: startX + (index % 5) * spacingX, y: startY + Math.floor(index / 5) * spacingY,
-                w: 0, h: 0, color: 'c-white'
-            });
-        });
-    }
-
-    els.input.value = '';
-    render();
-};
+});
 
 const btnClear = document.getElementById('btn-clear');
 let clearConfirm = false;
