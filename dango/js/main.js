@@ -33,6 +33,8 @@ const TRANSLATIONS = {
         toast_undo: "撤销",
         toast_export_prev: "导出刚刚的备份 ✨",
         toast_import_success: "导入成功 ✨",
+        help_delete: "删除选中",
+        help_home: "回归中心",
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -67,6 +69,8 @@ const TRANSLATIONS = {
         toast_undo: "Undo",
         toast_export_prev: "Export Backup ✨",
         toast_import_success: "Imported successfully ✨",
+        help_delete: "Delete Selected",
+        help_home: "Back to Center",
     }
 };
 
@@ -151,11 +155,11 @@ function pushHistory() {
 
 function undo() {
     if (history.undo.length === 0) return;
-    
+
     // 存入当前状态到 redo
-    const currentSnapshot = JSON.stringify({ 
-        nodes: state.nodes, 
-        groups: state.groups, 
+    const currentSnapshot = JSON.stringify({
+        nodes: state.nodes,
+        groups: state.groups,
         links: state.links,
         selection: Array.from(state.selection) // ✨
     });
@@ -165,19 +169,19 @@ function undo() {
     state.nodes = prev.nodes;
     state.groups = prev.groups;
     state.links = prev.links;
-    
+
     // ✨ 恢复选中状态
     state.selection = new Set(prev.selection || []);
-    
+
     render();
 }
 
 function redo() {
     if (history.redo.length === 0) return;
 
-    const currentSnapshot = JSON.stringify({ 
-        nodes: state.nodes, 
-        groups: state.groups, 
+    const currentSnapshot = JSON.stringify({
+        nodes: state.nodes,
+        groups: state.groups,
         links: state.links,
         selection: Array.from(state.selection) // ✨
     });
@@ -187,10 +191,10 @@ function redo() {
     state.nodes = next.nodes;
     state.groups = next.groups;
     state.links = next.links;
-    
+
     // ✨ 恢复选中状态
     state.selection = new Set(next.selection || []);
-    
+
     render();
 }
 
@@ -563,6 +567,10 @@ let targetAlreadySelectedAtStart = false; // 记录点击前的选中状态
 
 els.container.addEventListener('mousedown', e => {
     if (e.target.isContentEditable) return;
+    if (viewAnimationId) {
+        cancelAnimationFrame(viewAnimationId);
+        viewAnimationId = null;
+    }
     if (e.target.closest('.node') && e.detail === 2) return;
 
     if (e.button === 1 || (e.button === 0 && keys.Space)) {
@@ -700,6 +708,10 @@ els.container.addEventListener('mouseup', e => {
 });
 
 els.container.addEventListener('wheel', e => {
+    if (viewAnimationId) {
+        cancelAnimationFrame(viewAnimationId);
+        viewAnimationId = null;
+    }
     e.preventDefault();
     if (isModifier(e)) {
         const factor = 1 + ((e.deltaY > 0 ? -1 : 1) * 0.1);
@@ -722,21 +734,21 @@ els.container.addEventListener('dblclick', e => {
         if (node) {
             pushHistory();
 
-            nodeEl.contentEditable = true; 
-            nodeEl.classList.add('editing'); 
+            nodeEl.contentEditable = true;
+            nodeEl.classList.add('editing');
             nodeEl.focus();
-            
-            const range = document.createRange(); 
+
+            const range = document.createRange();
             range.selectNodeContents(nodeEl);
-            const sel = window.getSelection(); 
-            sel.removeAllRanges(); 
+            const sel = window.getSelection();
+            sel.removeAllRanges();
             sel.addRange(range);
 
             const finishEdit = () => {
-                nodeEl.contentEditable = false; 
+                nodeEl.contentEditable = false;
                 nodeEl.classList.remove('editing');
                 node.text = nodeEl.innerText;
-                node.w = nodeEl.offsetWidth; 
+                node.w = nodeEl.offsetWidth;
                 node.h = nodeEl.offsetHeight;
 
                 // ✨ 核心修复：退出编辑时清除残留的文本高亮
@@ -749,12 +761,12 @@ els.container.addEventListener('dblclick', e => {
             };
 
             nodeEl.onblur = finishEdit;
-            nodeEl.onkeydown = (ev) => { 
-                if (ev.key === 'Enter') { 
-                    ev.preventDefault(); 
-                    nodeEl.blur(); 
-                } 
-                ev.stopPropagation(); 
+            nodeEl.onkeydown = (ev) => {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    nodeEl.blur();
+                }
+                ev.stopPropagation();
             };
         }
     }
@@ -782,7 +794,8 @@ window.addEventListener('keydown', e => {
     if (isModifier(e) && e.code === 'KeyG' && !e.shiftKey) { e.preventDefault(); pushHistory(); createGroup(); }
     if (isModifier(e) && e.shiftKey && e.code === 'KeyG') { e.preventDefault(); pushHistory(); dissolveGroup(); }
     if (isModifier(e) && e.code === 'KeyL') { e.preventDefault(); pushHistory(); toggleLink(); }
-    if (e.code === 'Delete') { pushHistory(); deleteSelection(); }
+    if (e.code === 'Delete' || e.code === 'Backspace') { e.preventDefault(); pushHistory(); deleteSelection(); }
+    if (e.code === 'Home') { e.preventDefault(); resetViewToCenter(true); }
 
     if (isModifier(e) && e.code === 'KeyC') { e.preventDefault(); copySelection(); }
     if (isModifier(e) && e.code === 'KeyV') { e.preventDefault(); pushHistory(); pasteClipboard(); }
@@ -1330,6 +1343,59 @@ function showToast(message, safetySnapshot = null) {
             setTimeout(() => toast.remove(), 400);
         }
     }, delay);
+}
+
+function resetViewToCenter(animated = true) {
+    let targetX, targetY, targetScale = 1.2;
+    targetX = window.innerWidth / 2;
+    targetY = window.innerHeight / 2;
+
+    if (animated) {
+        animateView(targetX, targetY, targetScale);
+    } else {
+        state.view.x = targetX;
+        state.view.y = targetY;
+        state.view.scale = targetScale;
+        render();
+    }
+}
+
+// --- 视图动画系统 ---
+let viewAnimationId = null;
+
+function animateView(targetX, targetY, targetScale, duration = 400) {
+    // 如果之前有动画在跑，先停掉
+    if (viewAnimationId) cancelAnimationFrame(viewAnimationId);
+
+    const startX = state.view.x;
+    const startY = state.view.y;
+    const startScale = state.view.scale;
+    const startTime = performance.now();
+
+    function step(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        if (progress < 1) {
+            // 动画运行中
+            const ease = 1 - Math.pow(2, -10 * progress);
+            state.view.x = startX + (targetX - startX) * ease;
+            state.view.y = startY + (targetY - startY) * ease;
+            state.view.scale = startScale + (targetScale - startScale) * ease;
+            render();
+            viewAnimationId = requestAnimationFrame(step);
+        } else {
+            // ✨ 最后一帧：强制精准赋值，消除 0.1% 的数学误差
+            state.view.x = targetX;
+            state.view.y = targetY;
+            state.view.scale = targetScale;
+            render();
+            viewAnimationId = null; // 动画彻底结束
+        }
+    }
+
+
+    viewAnimationId = requestAnimationFrame(step);
 }
 // 初始应用
 applyHandDrawnStyle();
