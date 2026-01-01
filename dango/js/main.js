@@ -74,7 +74,10 @@ const TRANSLATIONS = {
     }
 };
 
-
+// 简单的纯链接判断 (以 http, https 或 www 开头，且不含空格)
+function isUrl(str) {
+    return /^(https?:\/\/|www\.)\S+$/i.test(str.trim());
+}
 // --- 修改初始化逻辑 ---
 const LS_LANG_KEY = 'cc-lang';
 // 优先从本地缓存读取，其次检测浏览器语言（只支持中英，其余默认英）
@@ -375,11 +378,58 @@ function syncDomElements(dataArray, parent, className, renderFn) {
 
 function renderNode(el, node) {
     el.style.transform = `translate(${node.x}px, ${node.y}px)`;
-    if (el.innerText !== node.text && !el.isContentEditable) el.innerText = node.text;
+    
+    // --- 链接识别逻辑 ---
+    if (isUrl(node.text)) {
+        el.classList.add('is-link');
+        
+        // 1. 查找或创建文本容器
+        let textEl = el.querySelector('.node-text');
+        if (!textEl) {
+            el.innerHTML = ''; // 清空可能存在的纯文本
+            textEl = document.createElement('div');
+            textEl.className = 'node-text';
+            el.appendChild(textEl);
+        }
+        if (textEl.innerText !== node.text) textEl.innerText = node.text;
 
+        // 2. 查找或创建跳转按钮
+        let btnEl = el.querySelector('.link-btn');
+        if (!btnEl) {
+            btnEl = document.createElement('div');
+            btnEl.className = 'link-btn';
+            btnEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>'; // 使用 SVG 图标更精致
+            // btnEl.title = "Open Link";
+            
+            // 阻止冒泡：防止点击按钮时触发节点选择或拖拽
+            btnEl.onmousedown = (e) => e.stopPropagation();
+            btnEl.onclick = (e) => {
+                e.stopPropagation();
+                let url = node.text.trim();
+                if (!url.startsWith('http')) url = 'https://' + url;
+                window.open(url, '_blank');
+            };
+            el.appendChild(btnEl);
+        }
+
+    } else {
+        // --- 普通文本逻辑 ---
+        el.classList.remove('is-link');
+        // 如果之前是链接结构，现在变回文本了，或者本来就是文本
+        // 为了安全，如果里面有 .node-text 结构，先清理
+        if (el.querySelector('.node-text')) el.innerHTML = '';
+        
+        if (el.innerText !== node.text && !el.isContentEditable) el.innerText = node.text;
+    }
+
+    // --- 通用样式处理 ---
     const isSelected = state.selection.has(node.id);
-    const classes = ['node', node.color || 'c-white'];
+    const classes = ['node'];
+    if (isUrl(node.text)) classes.push('is-link'); // 确保 class 存在
+    classes.push(node.color || 'c-white');
     if (isSelected) classes.push('selected');
+    
+    // 注意：el.className 赋值会覆盖上面的 add/remove，所以我们要合并
     el.className = classes.join(' ');
 
     if (!node.w || !node.h || el.offsetWidth !== node.w) {
@@ -728,45 +778,53 @@ els.container.addEventListener('wheel', e => {
 }, { passive: false });
 
 els.container.addEventListener('dblclick', e => {
+    // 找到节点（注意：因为加了子元素，target 可能是 .node-text，需向上查找）
     const nodeEl = e.target.closest('.node');
+    
     if (nodeEl) {
         const node = state.nodes.find(n => n.id === nodeEl.dataset.id);
         if (node) {
             pushHistory();
 
-            nodeEl.contentEditable = true;
-            nodeEl.classList.add('editing');
-            nodeEl.focus();
+            // ✨ 编辑前清理：如果是链接结构，还原为纯文本，方便编辑
+            if (nodeEl.classList.contains('is-link')) {
+                nodeEl.innerText = node.text; // 移除 .node-text 和 .link-btn，只留纯文本
+                nodeEl.classList.remove('is-link'); // 移除样式限制，让长网址完全展开
+            }
 
-            const range = document.createRange();
+            nodeEl.contentEditable = true; 
+            nodeEl.classList.add('editing'); 
+            nodeEl.focus();
+            
+            // 全选文本
+            const range = document.createRange(); 
             range.selectNodeContents(nodeEl);
-            const sel = window.getSelection();
-            sel.removeAllRanges();
+            const sel = window.getSelection(); 
+            sel.removeAllRanges(); 
             sel.addRange(range);
 
             const finishEdit = () => {
-                nodeEl.contentEditable = false;
+                nodeEl.contentEditable = false; 
                 nodeEl.classList.remove('editing');
+                
+                // 获取新文本
                 node.text = nodeEl.innerText;
-                node.w = nodeEl.offsetWidth;
-                node.h = nodeEl.offsetHeight;
-
-                // ✨ 核心修复：退出编辑时清除残留的文本高亮
+                
+                // 清除高亮
                 const currentSel = window.getSelection();
-                if (currentSel) {
-                    currentSel.removeAllRanges();
-                }
+                if (currentSel) currentSel.removeAllRanges();
 
+                // 强制重绘：renderNode 会判断新文本是否为 URL，并重新生成结构
                 render();
             };
 
             nodeEl.onblur = finishEdit;
-            nodeEl.onkeydown = (ev) => {
-                if (ev.key === 'Enter') {
-                    ev.preventDefault();
-                    nodeEl.blur();
-                }
-                ev.stopPropagation();
+            nodeEl.onkeydown = (ev) => { 
+                if (ev.key === 'Enter') { 
+                    ev.preventDefault(); 
+                    nodeEl.blur(); 
+                } 
+                ev.stopPropagation(); 
             };
         }
     }

@@ -860,3 +860,67 @@ body.is-empty .empty-state {
     opacity: 1;
     pointer-events: auto;
 }
+
+/* --- 链接节点专用样式 --- */
+.node.is-link {
+    font-size: 12px; /* 字体变小 */
+    padding: 8px 16px; /* 稍微减小内边距让它更紧凑 */
+    max-width: 240px; /* 限制最大宽度，拒绝大胶囊 */
+    color: var(--select-color); /* 使用主题色，或者保持默认色 */
+}
+
+/* 链接文本容器：负责截断长网址 */
+.node-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-decoration: underline; /* 下划线 */
+    text-decoration-color: rgba(0, 0, 0, 0.2);
+    pointer-events: none; /* 让点击穿透到 node，保证拖拽体验 */
+}
+
+/* 跳转按钮：悬浮在右侧 */
+.link-btn {
+    position: absolute;
+    right: -32px; /* 移出节点外部 */
+    top: 50%;
+    transform: translateY(-50%) scale(0.8);
+    width: 24px;
+    height: 24px;
+    
+    background: var(--bg-color); /* 遮挡背后的网格线 */
+    border: 1px solid var(--select-color);
+    border-radius: 50%;
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    font-size: 12px;
+    color: var(--select-color);
+    cursor: pointer;
+    
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+}
+
+/* 只有当节点被选中时，按钮才出现 */
+.node.selected .link-btn {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%) scale(1);
+}
+
+.link-btn:hover {
+    background: var(--select-color);
+    color: white;
+    transform: translateY(-50%) scale(1.1);
+}
+
+/* 手写模式适配：下划线改为波浪线可能更有趣，或者保持简单 */
+.hand-drawn-style .node-text {
+    text-decoration-style: solid; 
+}
