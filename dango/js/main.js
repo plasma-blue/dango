@@ -605,6 +605,39 @@ function renderGroup(el, group) {
 }
 function getNodeCenter(n) { return { x: n.x + (n.w || 0) / 2, y: n.y + (n.h || 0) / 2 }; }
 
+// --- 节日 Logo 逻辑 ---
+function updateSeasonalLogo() {
+    const now = new Date();
+    const month = now.getMonth() + 1; // 0-11 改为 1-12
+    const date = now.getDate();
+    const logoBox = document.getElementById('ui-logo-box');
+
+    let emoji = "✨"; // 默认：星星
+
+    // 1. 2026 春节
+    if ((month === 2 && date >= 16) || (month === 2 && date <= 23)) {
+        emoji = "🧧";
+    }
+    // 2. 情人节 (2月14)
+    else if (month === 2 && date === 14) {
+        emoji = "💖";
+    }
+    // 3. 万圣节 (10月25 - 10月31)
+    else if (month === 10 && date >= 25) {
+        emoji = "🎃";
+    }
+    // 4. 圣诞节 (12月20 - 12月26)
+    else if (month === 12 && date >= 20 && date <= 31) {
+        emoji = "🎄";
+    }
+    // 5. 元旦 (12月31 - 1月1)
+    else if ((month === 1 && date <= 3)) {
+        emoji = "🎉";
+    }
+    logoBox.innerText = emoji;
+}
+
+updateSeasonalLogo();
 // --- Interactions ---
 document.getElementById('btn-add').onclick = createNodesFromInput;
 
