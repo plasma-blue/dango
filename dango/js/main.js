@@ -134,46 +134,63 @@ const MAX_HISTORY = 50;
 const history = { undo: [], redo: [] };
 
 function pushHistory() {
-    // Deep clone state for history
+    // 将 Set 转为 Array 存入快照
     const snapshot = JSON.stringify({
         nodes: state.nodes,
         groups: state.groups,
-        links: state.links
+        links: state.links,
+        selection: Array.from(state.selection) // ✨ 保存选中状态
     });
 
-    // Avoid pushing duplicate consecutive states
     if (history.undo.length > 0 && history.undo[history.undo.length - 1] === snapshot) return;
 
     history.undo.push(snapshot);
     if (history.undo.length > MAX_HISTORY) history.undo.shift();
-    history.redo = []; // Clear redo stack on new action
+    history.redo = [];
 }
 
 function undo() {
     if (history.undo.length === 0) return;
-    // Current state -> Redo
-    const currentSnapshot = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links });
+    
+    // 存入当前状态到 redo
+    const currentSnapshot = JSON.stringify({ 
+        nodes: state.nodes, 
+        groups: state.groups, 
+        links: state.links,
+        selection: Array.from(state.selection) // ✨
+    });
     history.redo.push(currentSnapshot);
 
     const prev = JSON.parse(history.undo.pop());
     state.nodes = prev.nodes;
     state.groups = prev.groups;
     state.links = prev.links;
-    state.selection.clear(); // Clear selection to avoid ghost ids
+    
+    // ✨ 恢复选中状态
+    state.selection = new Set(prev.selection || []);
+    
     render();
 }
 
 function redo() {
     if (history.redo.length === 0) return;
-    // Current state -> Undo
-    const currentSnapshot = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links });
+
+    const currentSnapshot = JSON.stringify({ 
+        nodes: state.nodes, 
+        groups: state.groups, 
+        links: state.links,
+        selection: Array.from(state.selection) // ✨
+    });
     history.undo.push(currentSnapshot);
 
     const next = JSON.parse(history.redo.pop());
     state.nodes = next.nodes;
     state.groups = next.groups;
     state.links = next.links;
-    state.selection.clear();
+    
+    // ✨ 恢复选中状态
+    state.selection = new Set(next.selection || []);
+    
     render();
 }
 
