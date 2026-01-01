@@ -456,7 +456,7 @@ document.getElementById('btn-add').onclick = () => {
     const spacingX = 140;
     const spacingY = 80;
 
-    const existingTexts = new Set(state.nodes.map(n => n.text));
+    // const existingTexts = new Set(state.nodes.map(n => n.text));
     function parsePhrases(input) {
         // 正则解释：
         // "([^"]*)" -> 匹配双引号内容
@@ -480,9 +480,9 @@ document.getElementById('btn-add').onclick = () => {
         lines.forEach((line, rowIndex) => {
             const phrases = parsePhrases(line); // 对每一行进行短语解析
             phrases.forEach((phrase, colIndex) => {
-                if (!existingTexts.has(phrase)) {
-                    nodesToCreate.push({ text: phrase, row: rowIndex, col: colIndex });
-                }
+                // if (!existingTexts.has(phrase)) {
+                nodesToCreate.push({ text: phrase, row: rowIndex, col: colIndex });
+                // }
             });
         });
 
@@ -508,7 +508,7 @@ document.getElementById('btn-add').onclick = () => {
     } else {
         // --- 原有的自动流式逻辑 (5列) ---
         const phrases = parsePhrases(text); // 全局解析
-        const filteredParts = phrases.filter(p => !existingTexts.has(p));
+        const filteredParts = phrases // .filter(p => !existingTexts.has(p));
 
         const colCount = Math.min(filteredParts.length, 5);
         const rowCount = Math.ceil(filteredParts.length / 5);
