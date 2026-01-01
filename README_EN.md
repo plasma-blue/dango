@@ -1,9 +1,14 @@
 # 🍡 Dango
 
-**Drop a nugget, get organized.**
+[Web App](https://dango.ink)
 
 <div align="center">
   <img height="800" alt="Image" src="https://github.com/user-attachments/assets/949089ff-5b03-4e00-85ec-ebe39dba8feb" />
+  
+  <br />
+  <br />
+
+  <b>Drop a nugget, get organized.</b>
 </div>
 
 Dango is an lightweight, atomic canvas for your thoughts.
