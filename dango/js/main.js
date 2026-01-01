@@ -638,8 +638,9 @@ els.container.addEventListener('mouseup', e => {
 
         if (stateBeforeDrag) {
             const currentState = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links });
+            // 如果当前状态和按下鼠标前不一样（移动了或克隆了）
             if (currentState !== stateBeforeDrag) {
-                history.undo.push(stateBeforeDrag);
+                history.undo.push(stateBeforeDrag); // 将按下前的一刻存入撤销栈
                 if (history.undo.length > MAX_HISTORY) history.undo.shift();
                 history.redo = [];
             }
@@ -926,38 +927,52 @@ function exportJson() {
 }
 
 function cloneSelectionInPlace() {
-    // 🔴 记录历史
-    pushHistory();
-
+    // 1. 🔴 移除这里的 pushHistory()，交给 mouseup 统一处理
+    
     const mapping = {};
     const newNodes = [];
     const newGroups = [];
+    const newSelection = new Set();
 
-    // 1. 复制节点
+    // 2. 复制节点
     state.nodes.forEach(n => {
         if (state.selection.has(n.id)) {
             const newId = uid();
             mapping[n.id] = newId;
-            // 复制出一个一模一样的节点留在原位
-            newNodes.push({ ...n, id: newId });
+            // 创建副本
+            const newNode = { ...n, id: newId };
+            newNodes.push(newNode);
+            newSelection.add(newId); // 新节点将进入选择集
+            
+            // 重要：将新节点的初始位置同步到 dragStart，以便后续 mousemove 计算
+            if (dragStart && dragStart.initialPos[n.id]) {
+                dragStart.initialPos[newId] = { ...dragStart.initialPos[n.id] };
+            }
         }
     });
 
-    // 2. 复制组
+    // 3. 复制组
     state.groups.forEach(g => {
         if (state.selection.has(g.id)) {
             const newId = uid();
             const newGroup = { ...g, id: newId };
             newGroup.memberIds = g.memberIds.map(mid => mapping[mid] || mid);
             newGroups.push(newGroup);
+            newSelection.add(newId);
+
+            if (dragStart && dragStart.initialPos[g.id]) {
+                dragStart.initialPos[newId] = { ...dragStart.initialPos[g.id] };
+            }
         }
     });
 
-    // 3. 将新复制出来的“本体”加入 state，而“选中的”对象继续跟随鼠标移动
+    // 4. 更新画布状态
     state.nodes.push(...newNodes);
     state.groups.push(...newGroups);
-    // 注意：我们不需要改变 state.selection，
-    // 因为选中的还是原来的 ID，只是由于我们复制了新 ID 在原处，视觉上就像拖出了副本。
+
+    // 5. ✨ 关键：切换选择集
+    // 原来的节点（带线的）会留在原地，鼠标现在拖拽的是新生成的副本
+    state.selection = newSelection;
 }
 document.getElementById('btn-export').onclick = exportJson;
 document.getElementById('file-input').onchange = (e) => {
