@@ -4,11 +4,11 @@
     
 <div align="center">
   <img height="800" alt="Image" src="https://github.com/user-attachments/assets/949089ff-5b03-4e00-85ec-ebe39dba8feb" />
-  
   <br />
   <br />
-
   <b>组织灵感，一目了然。</b>
+  <br />
+  <br />
 </div>
 
 
