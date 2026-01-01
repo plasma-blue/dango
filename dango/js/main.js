@@ -35,6 +35,20 @@ const TRANSLATIONS = {
         toast_import_success: "导入成功 ✨",
         help_delete: "删除选中",
         help_home: "回归中心",
+        help_undo: "撤销 / 重做",
+        help_pan_zoom: "平移 / 缩放",
+        help_center: "回归视图中心",
+        help_save: "快速保存 JSON",
+        help_center_align: "分布对齐",
+        help_clone: "克隆选中节点",
+        help_select: "多选 / 框选",
+        help_delete: "删除选中",
+        help_nudge: "微调位置",
+        
+        help_group: "编组 / 解组",
+        help_link: "连线 / 断线",
+        help_align: "方向对齐",
+        help_color: "切换颜色",
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -71,6 +85,20 @@ const TRANSLATIONS = {
         toast_import_success: "Imported successfully ✨",
         help_delete: "Delete Selected",
         help_home: "Back to Center",
+        help_undo: "Undo / Redo",
+        help_pan_zoom: "Pan / Zoom",
+        help_center: "Reset View",
+        help_save: "Quick Save JSON",
+        help_center_align: "Align Distribution",
+        help_clone: "Clone Selection",
+        help_select: "Multi-select",
+        help_delete: "Delete Selected",
+        help_nudge: "Nudge Position",
+        
+        help_group: "Group / Ungroup",
+        help_link: "Link / Unlink",
+        help_align: "Align Direction",
+        help_color: "Change Color",
     }
 };
 

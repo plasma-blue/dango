@@ -73,37 +73,32 @@
                             <line x1="12" y1="17" x2="12.01" y2="17"></line>
                         </svg>
                     </button>
-
                     <!-- 帮助弹窗 -->
                     <div id="help-modal">
-                        <div class="help-row"><span class="help-desc" data-i18n="help_undo">撤销 / 重做</span> <span
-                                class="help-keys">Ctrl+Z / Shift+Z</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_pan">平移画布</span> <span
-                                class="help-keys">Space+Drag</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_zoom">缩放</span> <span
-                                class="help-keys">Ctrl+Wheel</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_edit">编辑 / 多选</span> <span
-                                class="help-keys">DBL Click / Ctrl+Click</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_copy">复制 / 粘贴</span> <span
-                                class="help-keys">Ctrl + C / V</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_group">编组 / 解组</span> <span
-                                class="help-keys">Ctrl + G / Shift+G</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_link">连线</span> <span
-                                class="help-keys">Ctrl+L</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_align">对齐</span> <span
-                                class="help-keys">Alt + AWDS</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_color">切换颜色</span> <span
-                                class="help-keys">Alt + 1~9</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_delete">删除选中</span> 
-                            <span class="help-keys">Del / Backspace</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_home">回归中心</span> 
-                            <span class="help-keys">Home</span></div>
+                        <!-- 第一组：核心与导航 -->
+                        <div class="help-row"><span class="help-desc" data-i18n="help_undo">撤销 / 重做</span> <span class="help-keys">Ctrl + Z / Y</span></div>
+                        <div class="help-row"><span class="help-desc" data-i18n="help_pan_zoom">平移 / 缩放</span> <span class="help-keys">Space + Drag / Wheel</span></div>
+                        <div class="help-row"><span class="help-desc" data-i18n="help_center">回归中心</span> <span class="help-keys">Home</span></div>
+                        <div class="help-row"><span class="help-desc" data-i18n="help_save">保存 JSON</span> <span class="help-keys">Ctrl + S</span></div>
+                        
+                        <!-- 第二组：操作与编辑 -->
+                        <div class="help-row"><span class="help-desc" data-i18n="help_clone">克隆节点</span> <span class="help-keys">Ctrl + Drag</span></div>
+                        <div class="help-row"><span class="help-desc" data-i18n="help_select">多选 / 框选</span> <span class="help-keys">Ctrl + Click</span></div>
+                        <div class="help-row"><span class="help-desc" data-i18n="help_delete">删除选中</span> <span class="help-keys">Del / Backspace</span></div>
+                        <!-- <div class="help-row"><span class="help-desc" data-i18n="help_nudge">微调位置</span> <span class="help-keys">Arrow Keys</span></div> -->
+                        
+                        <!-- 第三组：组织与美化 -->
+                        <div class="help-row"><span class="help-desc" data-i18n="help_group">编组 / 解组</span> <span class="help-keys">Ctrl + G / Ctrl+Shift+G</span></div>
+                        <div class="help-row"><span class="help-desc" data-i18n="help_link">连线 / 断线</span> <span class="help-keys">Ctrl + L</span></div>
+                        <div class="help-row"><span class="help-desc" data-i18n="help_align">方向对齐</span> <span class="help-keys">Alt + W A S D H J</span></div>
+                        <div class="help-row"><span class="help-desc" data-i18n="help_center_align">分布对齐</span> <span class="help-keys">Alt + Shift + H J</span></div>
+                        <div class="help-row"><span class="help-desc" data-i18n="help_color">切换颜色</span> <span class="help-keys">Alt + 1 ~ 9</span></div>
+
                         <a href="https://github.com/Plasma-Blue/dango" target="_blank" class="github-link">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                <path
-                                    d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
                             </svg>
-                            dango
+                            plasma-blue/dango
                         </a>
                     </div>
                 </div>
