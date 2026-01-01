@@ -1,66 +1,42 @@
-<a href="https://dango.ink/" target="_blank" rel="noopener">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" alt="Dango Banner" srcset="https://github.com/user-attachments/assets/be39a8e4-9033-45d0-a6c5-e9ee131ca5b7" />
-    <img alt="Dango Banner" src="https://github.com/user-attachments/assets/be39a8e4-9033-45d0-a6c5-e9ee131ca5b7" />
-  </picture>
-</a>
+# 🍡 团子画板 | Dango
 
-<h4 align="center">
-  <a href="https://dango.ink">Dango App</a> |
-  <a href="https://github.com/plasma-blue/dango">Source Code</a> |
-  <a href="https://github.com/plasma-blue/dango/issues">Report an Issue</a>
-</h4>
-
+**组织灵感，一目了然。**
+    
 <div align="center">
-  <h2>
-    Drop a nugget, get organized.
-  </h2>
+  <img height="800" alt="Image" src="https://github.com/user-attachments/assets/949089ff-5b03-4e00-85ec-ebe39dba8feb" />
 </div>
+  
+团子画板是一个轻量、原子化的思维整理工具。
 
-<br />
+它不试图成为复杂的绘图软件或笔记应用，它可以在灵感迸发瞬间，快速组织散乱的想法，并迅速理清关系。
 
-<p align="center">
-  <a href="https://github.com/plasma-blue/dango/blob/main/LICENSE">
-    <img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg"  /></a>
-  <a href="https://github.com/plasma-blue/dango/issues">
-    <img alt="PRs Welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat"  /></a>
-  <!-- Add other badges here in the future, e.g., for Discord or Twitter -->
-</p>
+[English Version](./README_EN.md) | [在线使用](https://dango.ink)
 
-<div align="center">
-  <figure>
-    <a href="https://dango.ink" target="_blank" rel="noopener">
-      <!-- PLACEHOLDER: Replace this with a GIF of Dango in action -->
-      <img src="https://excalidraw.nyc3.cdn.digitaloceanspaces.com/github%2Fproduct_showcase.png" alt="Dango Product Showcase" />
-    </a>
-    <figcaption>
-      <p align="center">
-        Turn raw text into an organized visual map in seconds.
-      </p>
-    </figcaption>
-  </figure>
-</div>
+---
 
-## Features
+### ✨ 核心特性
 
-*   ⚡️ **Instant Text-to-Node**: Paste text, lists, or ideas and instantly visualize them on the canvas. Supports spaces, newlines, and quotes as delimiters.
-*   ⌨️ **Keyboard-Centric**: Designed for efficiency. Almost every action, from creation to alignment, has a shortcut.
-*   📐 **Structured Layouts**: Choose between an automatic `stream` layout or a `precise mapping` mode that mirrors your input's structure.
-*   🎨 **Simple & Clean UI**: Minimalist interface with both Light and Dark modes. Includes an experimental hand-drawn style.
-*   🔗 **Organize & Connect**: Group nodes, create links , and align/distribute with simple shortcuts.
-*   💾 **Data Portability**: Export your canvas to JSON (for backup), SVG (for presentation), or a compressed LINK for easy sharing.
-*   🌐 **No Sign-up, Local First**: Your work is auto-saved to your browser's local storage. No account needed to get started.
-*   🌍 **Bilingual**: Fully supports English and Chinese.
+- **原子节点**：将碎片的文字转化为独立的原子节点。
+- **高效操作**：专为键盘操作优化。连线、对齐、分组、颜色切换，所有操作逻辑均简洁直接。
+- **手写风格**：内置手写字体风格。
+- **自由导出**：支持将画布压缩编码为 **链接** 分享，或导出为本地 **.dango 文件** 及 **SVG 矢量图**。
+- **安全保障**：撤销重做系统与安全快照机制作为安全保障，确保不丢失任何瞬间的灵感。
 
-## Getting Started
+### 🚀 快速开始
 
-1.  Navigate to **[dango.ink](https://dango.ink)**
-2.  Paste your text into the input panel on the left.
-3.  Click `Generate Nodes` or press `Ctrl+Enter`.
-4.  Use your mouse and keyboard shortcuts to organize the canvas. Click the `Help` button for a full list of commands.
+1. 在输入框键入你的想法（用空格、逗号或换行分隔）。
+2. 点击 **生成节点**。
+3. 开始你的排列、连线与组织。
 
-## Contributing
+### 🤝 贡献与反馈
 
-Found a bug or have a feature request? Please [open an issue](https://github.com/plasma-blue/dango/issues).
+如果你在使用过程中有任何建议，或者发现了 Bug，欢迎通过以下方式参与：
 
-Want to contribute to the code? We welcome PRs! Please check our (future) `CONTRIBUTING.md` for guidelines.
+- **提交 Issue**：在 GitHub 上提出你的想法或反馈问题。
+- **点亮 Star**：如果你喜欢这个项目，请在 GitHub 上点个 Star，这是对我最大的鼓励。
+- **分享作品**：生成一个分享链接，让更多人看到你的思维火花。
+
+### 💖 致谢
+
+- **Gemini 2.5 Pro/3.0 Lite**：协助完成了本项目核心代码的构建与交互逻辑的打磨。
+- **Cloudflare**：为本项目提供了免费、稳定、快速的全球托管服务。
