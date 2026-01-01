@@ -777,6 +777,123 @@ els.container.addEventListener('wheel', e => {
     render();
 }, { passive: false });
 
+// --- 移动端触屏支持 (Touch Events) ---
+
+// 辅助：获取触摸点的坐标（兼容多指，取第一指）
+function getTouchPos(e) {
+    if (e.touches && e.touches.length > 0) {
+        return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+    return { x: 0, y: 0 };
+}
+
+els.uiLayer.addEventListener('touchstart', (e) => {
+    // 如果点的是输入框或按钮，不要阻止默认行为（否则键盘弹不出来或按钮点不动）
+    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+        return;
+    }
+    // 只要摸了面板，就加上激活类，模拟 Hover 效果
+    els.uiLayer.classList.add('mobile-active');
+}, { passive: true });
+
+// 2. 画布层触摸逻辑
+els.container.addEventListener('touchstart', e => {
+    // A. 任何时候点画布，都意味着要关闭 UI 面板（如果它开着的话）
+    els.uiLayer.classList.remove('mobile-active');
+
+    // B. ✨ 核心修复：手动处理退出编辑
+    // 如果当前有元素聚焦（比如正在编辑节点），且点的不是那个节点，强制失焦
+    if (document.activeElement && 
+        document.activeElement.classList.contains('node') && 
+        e.target !== document.activeElement) {
+        document.activeElement.blur(); // 手动触发 blur 事件，保存内容并关闭键盘
+    }
+
+    // C. 阻止浏览器默认行为（滚动/缩放），接管控制权
+    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON' || e.target.closest('.header-btn')) return;
+    e.preventDefault(); 
+
+    const pos = getTouchPos(e);
+    const nodeEl = e.target.closest('.node');
+    const groupEl = e.target.closest('.group');
+    
+    // ... 后续逻辑保持不变 ...
+    if (nodeEl || groupEl) {
+        const id = (nodeEl || groupEl).dataset.id;
+        if (!state.selection.has(id)) {
+            state.selection.clear();
+            state.selection.add(id);
+            render();
+        }
+        mode = 'move';
+        hasMovedDuringDrag = false;
+        stateBeforeDrag = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links, selection: Array.from(state.selection) });
+        const worldPos = screenToWorld(pos.x, pos.y);
+        dragStart = { x: worldPos.x, y: worldPos.y, initialPos: getSelectionPositions() };
+    } else {
+        mode = 'pan';
+        dragStart = { x: pos.x, y: pos.y, viewX: state.view.x, viewY: state.view.y };
+    }
+}, { passive: false });
+
+// 注意：touchmove 和 touchend 不需要大幅修改，保留上一轮的代码即可
+// 只需要确保 touchmove 里的 preventDefault() 依然存在
+els.container.addEventListener('touchmove', e => {
+    if (!mode) return;
+    e.preventDefault();
+    const pos = getTouchPos(e);
+    // ... (同上一轮代码) ...
+    if (mode === 'pan') {
+        state.view.x = dragStart.viewX + (pos.x - dragStart.x);
+        state.view.y = dragStart.viewY + (pos.y - dragStart.y);
+        if (viewAnimationId) { cancelAnimationFrame(viewAnimationId); viewAnimationId = null; }
+        render();
+    } else if (mode === 'move') {
+        // ... (同上一轮代码) ...
+        const worldPos = screenToWorld(pos.x, pos.y);
+        const dx = worldPos.x - dragStart.x;
+        const dy = worldPos.y - dragStart.y;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMovedDuringDrag = true;
+
+        state.selection.forEach(id => {
+            const init = dragStart.initialPos[id];
+            if (init) {
+                const item = findItem(id);
+                if (item) {
+                    item.x = init.x + dx; item.y = init.y + dy;
+                    if (init.type === 'group') {
+                        item.memberIds.forEach(mid => {
+                            const member = state.nodes.find(n => n.id === mid);
+                            if (member && !dragStart.initialPos[mid]) {
+                                const mInit = dragStart.initialPos[`member_${mid}`];
+                                if (mInit) { member.x = mInit.x + dx; member.y = mInit.y + dy; }
+                            }
+                        });
+                    }
+                }
+            }
+        });
+        render();
+    }
+}, { passive: false });
+
+els.container.addEventListener('touchend', e => {
+    if (mode === 'move') {
+        if (stateBeforeDrag) {
+            // ... (历史记录逻辑同上一轮) ...
+            const currentState = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links, selection: Array.from(state.selection) });
+            if (currentState !== stateBeforeDrag) {
+                history.undo.push(stateBeforeDrag);
+                if (history.undo.length > MAX_HISTORY) history.undo.shift();
+                history.redo = [];
+            }
+            stateBeforeDrag = null;
+        }
+    }
+    mode = null;
+    dragStart = null;
+});
+
 els.container.addEventListener('dblclick', e => {
     // 找到节点（注意：因为加了子元素，target 可能是 .node-text，需向上查找）
     const nodeEl = e.target.closest('.node');

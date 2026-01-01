@@ -194,6 +194,15 @@ body.mode-pan * {
         height 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0s;
 }
 
+/* ✨ 新增：移动端激活状态 (无动画，防止布局崩坏) */
+#ui-layer.mobile-active {
+    width: 340px;
+    height: auto;
+    border-radius: 18px;
+    /* 关键：取消过渡，直接瞬开 */
+    transition: none !important; 
+}
+
 /* 顶部栏容器 */
 #ui-top-bar {
     height: 48px;
@@ -238,6 +247,28 @@ body.mode-pan * {
     opacity: 1;
     pointer-events: auto;
     transition: opacity 0.3s ease-out 0.2s;
+}
+
+#ui-layer.mobile-active #ui-header-content {
+    opacity: 1;
+    pointer-events: auto;
+    transition: none !important; /* 移动端瞬现 */
+}
+
+
+#ui-layer:hover #ui-content,
+#ui-layer:focus-within #ui-content {
+    opacity: 1;
+    height: auto;
+    overflow: visible;
+    transition: opacity 0.3s ease-out 0.2s;
+}
+
+#ui-layer.mobile-active #ui-content {
+    opacity: 1;
+    height: auto;
+    overflow: visible;
+    transition: none !important; /* 移动端瞬现 */
 }
 
 /* Title - 重新设计 */
@@ -555,6 +586,7 @@ button.btn-danger:hover {
     top: 0;
     left: 0;
     overflow: hidden;
+    touch-action: none; 
 }
 
 #world {
