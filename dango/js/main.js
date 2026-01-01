@@ -703,20 +703,42 @@ els.container.addEventListener('dblclick', e => {
     if (nodeEl) {
         const node = state.nodes.find(n => n.id === nodeEl.dataset.id);
         if (node) {
-            // 🔴 Undo Point
             pushHistory();
 
-            nodeEl.contentEditable = true; nodeEl.classList.add('editing'); nodeEl.focus();
-            const range = document.createRange(); range.selectNodeContents(nodeEl);
-            const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+            nodeEl.contentEditable = true; 
+            nodeEl.classList.add('editing'); 
+            nodeEl.focus();
+            
+            const range = document.createRange(); 
+            range.selectNodeContents(nodeEl);
+            const sel = window.getSelection(); 
+            sel.removeAllRanges(); 
+            sel.addRange(range);
+
             const finishEdit = () => {
-                nodeEl.contentEditable = false; nodeEl.classList.remove('editing');
+                nodeEl.contentEditable = false; 
+                nodeEl.classList.remove('editing');
                 node.text = nodeEl.innerText;
-                node.w = nodeEl.offsetWidth; node.h = nodeEl.offsetHeight;
+                node.w = nodeEl.offsetWidth; 
+                node.h = nodeEl.offsetHeight;
+
+                // ✨ 核心修复：退出编辑时清除残留的文本高亮
+                const currentSel = window.getSelection();
+                if (currentSel) {
+                    currentSel.removeAllRanges();
+                }
+
                 render();
             };
+
             nodeEl.onblur = finishEdit;
-            nodeEl.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); nodeEl.blur(); } ev.stopPropagation(); };
+            nodeEl.onkeydown = (ev) => { 
+                if (ev.key === 'Enter') { 
+                    ev.preventDefault(); 
+                    nodeEl.blur(); 
+                } 
+                ev.stopPropagation(); 
+            };
         }
     }
 });
