@@ -79,7 +79,7 @@
                         <div class="help-row"><span class="help-desc" data-i18n="help_undo">撤销 / 重做</span> <span class="help-keys">Ctrl + Z / Y</span></div>
                         <div class="help-row"><span class="help-desc" data-i18n="help_pan_zoom">平移 / 缩放</span> <span class="help-keys">Space + Drag / Wheel</span></div>
                         <div class="help-row"><span class="help-desc" data-i18n="help_center">回归中心</span> <span class="help-keys">Home</span></div>
-                        <div class="help-row"><span class="help-desc" data-i18n="help_save">保存 JSON</span> <span class="help-keys">Ctrl + S</span></div>
+                        <div class="help-row"><span class="help-desc" data-i18n="help_save">保存画板文件</span> <span class="help-keys">Ctrl + S</span></div>
                         
                         <!-- 第二组：操作与编辑 -->
                         <div class="help-row"><span class="help-desc" data-i18n="help_clone">克隆节点</span> <span class="help-keys">Ctrl + Drag</span></div>
@@ -136,12 +136,12 @@
                 <!-- 第二层：导出选项（完全镜像第一层的结构） -->
                 <div class="btn-row stack-back">
                     <!-- LINK 放在第一个，完美承接“导出”按钮的双击 -->
-                    <button class="secondary" id="opt-link">LINK</button> 
-                    <button class="secondary" id="opt-json">JSON</button>
-                    <button class="secondary" id="opt-svg">SVG</button>
+                    <button class="secondary" id="opt-link" data-i18n="btn_export_link">LINK</button> 
+                    <button class="secondary" id="opt-json" data-i18n="btn_export_file">DANGO</button>
+                    <button class="secondary" id="opt-svg" data-i18n="btn_export_svg">SVG</button>
                 </div>
             </div>
-            <input type="file" id="file-input" style="display:none" accept=".json">
+            <input type="file" id="file-input" style="display:none" accept=".dango">
         </div>
     </div>
     <div id="toast-container"></div>

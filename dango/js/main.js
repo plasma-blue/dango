@@ -38,13 +38,15 @@ const TRANSLATIONS = {
         help_undo: "撤销 / 重做",
         help_pan_zoom: "平移 / 缩放",
         help_center: "回归视图中心",
-        help_save: "快速保存 JSON",
+        help_save: "保存画板文件",
         help_center_align: "分布对齐",
         help_clone: "克隆选中节点",
         help_select: "多选 / 框选",
         help_delete: "删除选中",
         help_nudge: "微调位置",
-        
+        btn_export_link: "链接",
+        btn_export_file: "文件",
+        btn_export_svg: "矢量图",
         help_group: "编组 / 解组",
         help_link: "连线 / 断线",
         help_align: "方向对齐",
@@ -94,13 +96,15 @@ const TRANSLATIONS = {
         help_undo: "Undo / Redo",
         help_pan_zoom: "Pan / Zoom",
         help_center: "Reset View",
-        help_save: "Quick Save JSON",
+        help_save: "Save Dango File",
         help_center_align: "Align Distribution",
         help_clone: "Clone Selection",
         help_select: "Multi-select",
         help_delete: "Delete Selected",
         help_nudge: "Nudge Position",
-        
+        btn_export_link: "LINK",
+        btn_export_file: "FILE",
+        btn_export_svg: "SVG",
         help_group: "Group / Ungroup",
         help_link: "Link / Unlink",
         help_align: "Align Direction",
@@ -1256,7 +1260,7 @@ function exportJson() {
     const data = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob); const a = document.createElement('a');
-    a.href = url; a.download = `concept-canvas_${getTimestamp()}.json`; a.click(); URL.revokeObjectURL(url);
+    a.href = url; a.download = `dango-canvas_${getTimestamp()}.dango`;  a.click(); URL.revokeObjectURL(url);
 }
 
 function cloneSelectionInPlace() {
@@ -1587,7 +1591,7 @@ function showToast(message, safetySnapshot = null) {
         btnExport.innerText = texts.toast_export_prev;
         btnExport.onclick = () => {
             const data = JSON.stringify(safetySnapshot, null, 2);
-            downloadBlob(data, `safety-backup_${getTimestamp()}.json`, 'application/json');
+            downloadBlob(data, `safety-backup_${getTimestamp()}.dango`, 'application/json');
             toast.remove();
         };
 
