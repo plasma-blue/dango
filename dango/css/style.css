@@ -359,11 +359,40 @@ textarea:focus {
     opacity: 0;
     transform: translateY(20px);
     transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 .toast.show {
     opacity: 1;
     transform: translateY(0);
+}
+
+
+.toast-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: 8px;
+    border-left: 1px solid var(--dot-color);
+    padding-left: 12px;
+}
+
+.btn-toast {
+    background: transparent;
+    border: 1px solid var(--select-color);
+    color: var(--select-color);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-toast:hover {
+    background: var(--select-color);
+    color: white;
 }
 
 button.primary {
@@ -777,12 +806,13 @@ body.is-empty .empty-state {
 /* --- 动作堆叠容器 --- */
 .action-stack {
     position: relative;
-    height: 38px; /* 与按钮高度保持一致 */
+    height: 38px;
     overflow: hidden;
     perspective: 1000px;
 }
 
-.stack-front, .stack-back {
+.stack-front,
+.stack-back {
     position: absolute;
     top: 0;
     left: 0;

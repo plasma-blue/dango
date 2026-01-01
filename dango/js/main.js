@@ -28,6 +28,11 @@ const TRANSLATIONS = {
         btn_export: "导出",
         settings_hand_drawn: "手写风格 (需加载字体)",
         empty_prompt: "输入想法，开启你的画布 ✨",
+        toast_cleared: "画布已清空",
+        toast_imported: "画布已导入",
+        toast_undo: "撤销",
+        toast_export_prev: "导出刚刚的备份 ✨",
+        toast_import_success: "导入成功 ✨",
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -57,6 +62,11 @@ const TRANSLATIONS = {
         btn_export: "Export",
         settings_hand_drawn: "Hand-drawn Style (Load fonts)",
         empty_prompt: "Type ideas here to start ✨",
+        toast_cleared: "Canvas cleared",
+        toast_imported: "Canvas imported",
+        toast_undo: "Undo",
+        toast_export_prev: "Export Backup ✨",
+        toast_import_success: "Imported successfully ✨",
     }
 };
 
@@ -453,7 +463,7 @@ btnClear.onclick = () => {
     const texts = TRANSLATIONS[currentLang];
     if (!clearConfirm) {
         clearConfirm = true;
-        btnClear.innerText = texts['confirm_clear']; // 使用翻译词汇
+        btnClear.innerText = texts['confirm_clear'];
         btnClear.classList.add('btn-danger');
         setTimeout(() => {
             if (clearConfirm) {
@@ -463,12 +473,19 @@ btnClear.onclick = () => {
             }
         }, 3000);
     } else {
+        // 💾 捕捉快照
+        const snapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links] };
+
         pushHistory();
         state.nodes = []; state.groups = []; state.links = []; state.selection.clear();
+
         clearConfirm = false;
         btnClear.innerText = "🗑️";
         btnClear.classList.remove('btn-danger');
         render();
+
+        // 🍞 弹出带“救命稻草”的 Toast
+        showToast(texts.toast_cleared, snapshot);
     }
 };
 
@@ -928,7 +945,7 @@ function exportJson() {
 
 function cloneSelectionInPlace() {
     // 1. 🔴 移除这里的 pushHistory()，交给 mouseup 统一处理
-    
+
     const mapping = {};
     const newNodes = [];
     const newGroups = [];
@@ -943,7 +960,7 @@ function cloneSelectionInPlace() {
             const newNode = { ...n, id: newId };
             newNodes.push(newNode);
             newSelection.add(newId); // 新节点将进入选择集
-            
+
             // 重要：将新节点的初始位置同步到 dragStart，以便后续 mousemove 计算
             if (dragStart && dragStart.initialPos[n.id]) {
                 dragStart.initialPos[newId] = { ...dragStart.initialPos[n.id] };
@@ -981,11 +998,16 @@ document.getElementById('file-input').onchange = (e) => {
     reader.onload = (ev) => {
         try {
             const data = JSON.parse(ev.target.result);
-            // 🔴 Undo Point before loading new file
             pushHistory();
-            state.nodes = data.nodes || []; state.groups = data.groups || []; state.links = data.links || []; state.selection.clear(); render();
+            state.nodes = data.nodes || [];
+            state.groups = data.groups || [];
+            state.links = data.links || [];
+            state.selection.clear();
+            render();
+            // 🍞 纯成功的 Toast
+            showToast(TRANSLATIONS[currentLang].toast_import_success);
         }
-        catch (err) { alert('文件格式错误'); }
+        catch (err) { alert(TRANSLATIONS[currentLang].alert_file_err); }
     };
     reader.readAsText(file); e.target.value = '';
 };
@@ -1094,7 +1116,7 @@ function resetActionStack() {
 btnExportMain.onclick = (e) => {
     e.stopPropagation();
     actionStack.classList.add('is-exporting');
-    
+
     // 5秒自动重置（用户无操作时自动退回）
     clearTimeout(exportResetTimer);
     exportResetTimer = setTimeout(resetActionStack, 5000);
@@ -1186,37 +1208,32 @@ function loadFromUrl() {
     if (!hash) return false;
 
     try {
-        // 1. 解压数据
         const decompressed = LZString.decompressFromEncodedURIComponent(hash);
         if (!decompressed) return false;
-
         const data = JSON.parse(decompressed);
 
+        // 💾 捕捉旧数据快照
+        let oldSnapshot = null;
         if (state.nodes.length > 0) {
+            oldSnapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links] };
             pushHistory();
         }
-        // 2. 载入状态
+
         state.nodes = data.nodes || [];
         state.groups = data.groups || [];
         state.links = data.links || [];
         if (data.settings) state.settings = { ...state.settings, ...data.settings };
 
-        // 3. 渲染
         render();
         applySettings();
         applyHandDrawnStyle();
 
-        const msg = currentLang === 'zh'
-            ? "已从链接载入。按 Ctrl+Z 可恢复本地原图 ✨"
-            : "Loaded from link. Press Ctrl+Z to restore previous ✨";
-        showToast(msg);
+        // 🍞 弹出带“救命稻草”的 Toast
+        showToast(TRANSLATIONS[currentLang].toast_imported, oldSnapshot);
 
-        // 4. 清除 hash（可选），让 URL 变回干净的样子，或者保留它作为备份
         window.history.replaceState(null, null, window.location.pathname);
-
         return true;
     } catch (e) {
-        console.error("Failed to load data from URL", e);
         return false;
     }
 }
@@ -1226,21 +1243,54 @@ if (!loadFromUrl()) {
     loadData(); // 如果 URL 没数据，再尝试从本地存储加载
 }
 
-function showToast(message) {
+function showToast(message, safetySnapshot = null) {
+    const texts = TRANSLATIONS[currentLang];
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = 'toast';
-    toast.innerText = message;
-    container.appendChild(toast);
 
-    // 触发动画
+    // 基础文本
+    const textNode = document.createElement('span');
+    textNode.innerText = message;
+    toast.appendChild(textNode);
+
+    // 如果提供了快照，添加“救命稻草”按钮
+    if (safetySnapshot) {
+        const actions = document.createElement('div');
+        actions.className = 'toast-actions';
+
+        // 1. 撤销按钮
+        const btnUndo = document.createElement('button');
+        btnUndo.className = 'btn-toast';
+        btnUndo.innerText = texts.toast_undo;
+        btnUndo.onclick = () => { undo(); toast.remove(); };
+
+        // 2. 导出备份按钮
+        const btnExport = document.createElement('button');
+        btnExport.className = 'btn-toast';
+        btnExport.innerText = texts.toast_export_prev;
+        btnExport.onclick = () => {
+            const data = JSON.stringify(safetySnapshot, null, 2);
+            downloadBlob(data, `safety-backup_${getTimestamp()}.json`, 'application/json');
+            toast.remove();
+        };
+
+        actions.appendChild(btnUndo);
+        actions.appendChild(btnExport);
+        toast.appendChild(actions);
+    }
+
+    container.appendChild(toast);
     setTimeout(() => toast.classList.add('show'), 10);
 
-    // 3秒后移除
+    // 有交互的 Toast 停留时间稍长 (6秒)，纯文本 3秒
+    const delay = safetySnapshot ? 6000 : 3000;
     setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 400);
-    }, 3000);
+        if (toast.parentNode) {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 400);
+        }
+    }, delay);
 }
 // 初始应用
 applyHandDrawnStyle();
