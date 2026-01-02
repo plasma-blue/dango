@@ -43,9 +43,8 @@ If you have any suggestions or find a bug, feel free to get involved:
 
 Special thanks to the following for their support:
 
-- **Gemini**: Assisted in building the core code and refining the interaction logic of this project.
+- **Gemini**: Vibe coding of this project.
 - **Cloudflare**: Provided stable and fast global hosting services for this project.
 
----
-
-*Made with passion by [Plasma-Blue]*
+### 📕 License
+AGPL-3.0 license 

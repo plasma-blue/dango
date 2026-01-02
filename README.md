@@ -43,5 +43,8 @@
 
 ### 💖 致谢
 
-- **Gemini 2.5 Pro/3.0 Lite**：协助完成了本项目核心代码的构建与交互逻辑的打磨。
-- **Cloudflare**：为本项目提供了免费、稳定、快速的全球托管服务。
+- **Gemini 2.5 Pro/3.0 Lite**：Vibe coding。
+- **Cloudflare**：为本项目提供了免费、快速的全球托管服务。
+
+### 📕 许可证
+AGPL-3.0 license
