@@ -1456,6 +1456,10 @@ document.getElementById('file-input').onchange = (e) => {
     reader.readAsText(file); e.target.value = '';
 };
 
+document.getElementById('btn-import-main').onclick = () => {
+    document.getElementById('file-input').click();
+};
+
 function exportToSVG() {
     if (state.nodes.length === 0) return;
 
