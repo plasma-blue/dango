@@ -908,72 +908,155 @@ function getTouchPos(e) {
     return { x: 0, y: 0 };
 }
 
+let lastTapTime = 0;
+let lastTapTarget = null;
+let initialPinchDist = 0;
+let initialPinchScale = 1;
+let pinchCenter = { x: 0, y: 0 }; // 缩放中心点
+
+// 辅助：计算两指距离
+function getPinchDist(e) {
+    return Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+    );
+}
+
+// 辅助：计算两指中心点
+function getPinchCenter(e) {
+    return {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+    };
+}
+
+// 1. 面板触摸逻辑 (保持不变)
 els.uiLayer.addEventListener('touchstart', (e) => {
-    // 如果点的是输入框或按钮，不要阻止默认行为（否则键盘弹不出来或按钮点不动）
-    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON' || e.target.closest('button')) {
-        return;
-    }
-    // 只要摸了面板，就加上激活类，模拟 Hover 效果
+    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
     els.uiLayer.classList.add('mobile-active');
 }, { passive: true });
 
-// 2. 画布层触摸逻辑
-els.container.addEventListener('touchstart', e => {
-    // A. 任何时候点画布，都意味着要关闭 UI 面板（如果它开着的话）
-    els.uiLayer.classList.remove('mobile-active');
 
-    // B. ✨ 核心修复：手动处理退出编辑
-    // 如果当前有元素聚焦（比如正在编辑节点），且点的不是那个节点，强制失焦
-    if (document.activeElement && 
-        document.activeElement.classList.contains('node') && 
-        e.target !== document.activeElement) {
-        document.activeElement.blur(); // 手动触发 blur 事件，保存内容并关闭键盘
+// 2. 画布层触摸逻辑 (核心修改)
+els.container.addEventListener('touchstart', e => {
+    // 修复问题 1：点击画布，强制关闭 UI 面板，并让输入框失焦
+    els.uiLayer.classList.remove('mobile-active');
+    if (document.activeElement && document.activeElement !== document.body) {
+        document.activeElement.blur();
     }
 
-    // C. 阻止浏览器默认行为（滚动/缩放），接管控制权
-    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON' || e.target.closest('.header-btn')) return;
-    e.preventDefault(); 
+    // --- 双指缩放 (Pinch) 检测 ---
+    if (e.touches.length === 2) {
+        e.preventDefault(); // 阻止浏览器默认缩放
+        mode = 'pinch';
+        initialPinchDist = getPinchDist(e);
+        initialPinchScale = state.view.scale;
+        // 记录缩放中心，用于优化缩放体验（可选，简易版可省略）
+        const center = getPinchCenter(e);
+        pinchCenter = screenToWorld(center.x, center.y); 
+        return;
+    }
 
-    const pos = getTouchPos(e);
+    // 阻止默认行为（防止滚动、原生缩放等），除非点的是UI元素
+    if (e.target.tagName === 'TEXTAREA' || e.target.closest('.header-btn')) return;
+    
+    // 如果不在编辑状态，阻止默认行为以保证拖拽流畅
+    if (!e.target.isContentEditable) {
+        e.preventDefault();
+    }
+
+    // --- 模拟双击 (Double Tap) 检测 ---
+    const currentTime = new Date().getTime();
+    const tapLength = currentTime - lastTapTime;
     const nodeEl = e.target.closest('.node');
+    
+    // 如果两次点击间隔 < 300ms 且目标相同，视为双击
+    if (tapLength < 300 && tapLength > 0 && nodeEl && lastTapTarget === nodeEl) {
+        handleNodeEdit(nodeEl); // 修复问题 3：调用双击编辑
+        lastTapTarget = null;
+        lastTapTime = 0;
+        return;
+    }
+    lastTapTarget = nodeEl;
+    lastTapTime = currentTime;
+
+    // --- 单指操作逻辑 ---
+    const pos = getTouchPos(e);
     const groupEl = e.target.closest('.group');
     
-    // ... 后续逻辑保持不变 ...
     if (nodeEl || groupEl) {
         const id = (nodeEl || groupEl).dataset.id;
+        
+        // 如果没选中，选中它；如果已选中，保持选中状态以便拖拽
         if (!state.selection.has(id)) {
             state.selection.clear();
             state.selection.add(id);
             render();
         }
+
         mode = 'move';
         hasMovedDuringDrag = false;
-        stateBeforeDrag = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links, selection: Array.from(state.selection) });
+        // 记录状态用于撤销
+        stateBeforeDrag = JSON.stringify({ 
+            nodes: state.nodes, 
+            groups: state.groups, 
+            links: state.links, 
+            selection: Array.from(state.selection) 
+        });
+        
         const worldPos = screenToWorld(pos.x, pos.y);
         dragStart = { x: worldPos.x, y: worldPos.y, initialPos: getSelectionPositions() };
+
     } else {
+        // 修复问题 4：点击空白处，取消选中
+        state.selection.clear();
+        render();
+
         mode = 'pan';
         dragStart = { x: pos.x, y: pos.y, viewX: state.view.x, viewY: state.view.y };
     }
 }, { passive: false });
 
-// 注意：touchmove 和 touchend 不需要大幅修改，保留上一轮的代码即可
-// 只需要确保 touchmove 里的 preventDefault() 依然存在
+
 els.container.addEventListener('touchmove', e => {
     if (!mode) return;
     e.preventDefault();
+
+    // --- 修复问题 2：双指缩放执行 ---
+    if (mode === 'pinch' && e.touches.length === 2) {
+        const currentDist = getPinchDist(e);
+        if (currentDist > 0) {
+            // 计算新的缩放比例
+            const scaleFactor = currentDist / initialPinchDist;
+            let newScale = initialPinchScale * scaleFactor;
+            
+            // 限制缩放范围
+            newScale = Math.max(0.1, Math.min(5, newScale));
+            
+            // 应用缩放
+            state.view.scale = newScale;
+            
+            // (高级) 围绕中心点缩放：目前简单处理，后续可优化 update view x/y
+            // 简单版只改 scale，效果类似中心缩放但会偏移，对于移动端通常可接受
+            
+            render();
+        }
+        return;
+    }
+
+    // --- 单指移动逻辑 ---
     const pos = getTouchPos(e);
-    // ... (同上一轮代码) ...
+
     if (mode === 'pan') {
         state.view.x = dragStart.viewX + (pos.x - dragStart.x);
         state.view.y = dragStart.viewY + (pos.y - dragStart.y);
         if (viewAnimationId) { cancelAnimationFrame(viewAnimationId); viewAnimationId = null; }
         render();
     } else if (mode === 'move') {
-        // ... (同上一轮代码) ...
         const worldPos = screenToWorld(pos.x, pos.y);
         const dx = worldPos.x - dragStart.x;
         const dy = worldPos.y - dragStart.y;
+        
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMovedDuringDrag = true;
 
         state.selection.forEach(id => {
@@ -981,7 +1064,8 @@ els.container.addEventListener('touchmove', e => {
             if (init) {
                 const item = findItem(id);
                 if (item) {
-                    item.x = init.x + dx; item.y = init.y + dy;
+                    item.x = init.x + dx; 
+                    item.y = init.y + dy;
                     if (init.type === 'group') {
                         item.memberIds.forEach(mid => {
                             const member = state.nodes.find(n => n.id === mid);
@@ -998,74 +1082,86 @@ els.container.addEventListener('touchmove', e => {
     }
 }, { passive: false });
 
+
 els.container.addEventListener('touchend', e => {
-    if (mode === 'move') {
-        if (stateBeforeDrag) {
-            // ... (历史记录逻辑同上一轮) ...
-            const currentState = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links, selection: Array.from(state.selection) });
-            if (currentState !== stateBeforeDrag) {
-                history.undo.push(stateBeforeDrag);
-                if (history.undo.length > MAX_HISTORY) history.undo.shift();
-                history.redo = [];
-            }
-            stateBeforeDrag = null;
+    // 处理移动后的撤销历史记录
+    if (mode === 'move' && stateBeforeDrag) {
+        const currentState = JSON.stringify({ 
+            nodes: state.nodes, 
+            groups: state.groups, 
+            links: state.links, 
+            selection: Array.from(state.selection) 
+        });
+        if (currentState !== stateBeforeDrag) {
+            history.undo.push(stateBeforeDrag);
+            if (history.undo.length > MAX_HISTORY) history.undo.shift();
+            history.redo = [];
         }
     }
+    
+    // 重置所有状态
+    stateBeforeDrag = null;
     mode = null;
     dragStart = null;
+    initialPinchDist = 0;
 });
 
-els.container.addEventListener('dblclick', e => {
-    // 找到节点（注意：因为加了子元素，target 可能是 .node-text，需向上查找）
-    const nodeEl = e.target.closest('.node');
-    
-    if (nodeEl) {
-        const node = state.nodes.find(n => n.id === nodeEl.dataset.id);
-        if (node) {
-            pushHistory();
+// --- 提取出来的通用编辑函数 ---
+function handleNodeEdit(nodeEl) {
+    if (!nodeEl) return;
+    const node = state.nodes.find(n => n.id === nodeEl.dataset.id);
+    if (node) {
+        // 如果正在拖拽或移动，不应该进入编辑模式（防止误触）
+        if (mode === 'move' || hasMovedDuringDrag) return;
 
-            // ✨ 编辑前清理：如果是链接结构，还原为纯文本，方便编辑
-            if (nodeEl.classList.contains('is-link')) {
-                nodeEl.innerText = node.text; // 移除 .node-text 和 .link-btn，只留纯文本
-                nodeEl.classList.remove('is-link'); // 移除样式限制，让长网址完全展开
-            }
+        pushHistory();
 
-            nodeEl.contentEditable = true; 
-            nodeEl.classList.add('editing'); 
-            nodeEl.focus();
-            
-            // 全选文本
-            const range = document.createRange(); 
-            range.selectNodeContents(nodeEl);
-            const sel = window.getSelection(); 
-            sel.removeAllRanges(); 
-            sel.addRange(range);
-
-            const finishEdit = () => {
-                nodeEl.contentEditable = false; 
-                nodeEl.classList.remove('editing');
-                
-                // 获取新文本
-                node.text = nodeEl.innerText;
-                
-                // 清除高亮
-                const currentSel = window.getSelection();
-                if (currentSel) currentSel.removeAllRanges();
-
-                // 强制重绘：renderNode 会判断新文本是否为 URL，并重新生成结构
-                render();
-            };
-
-            nodeEl.onblur = finishEdit;
-            nodeEl.onkeydown = (ev) => { 
-                if (ev.key === 'Enter') { 
-                    ev.preventDefault(); 
-                    nodeEl.blur(); 
-                } 
-                ev.stopPropagation(); 
-            };
+        // 链接特殊处理
+        if (nodeEl.classList.contains('is-link')) {
+            nodeEl.innerText = node.text;
+            nodeEl.classList.remove('is-link');
         }
+
+        nodeEl.contentEditable = true;
+        nodeEl.classList.add('editing');
+        nodeEl.focus();
+
+        // 全选文本
+        const range = document.createRange();
+        range.selectNodeContents(nodeEl);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+
+        const finishEdit = () => {
+            nodeEl.contentEditable = false;
+            nodeEl.classList.remove('editing');
+            node.text = nodeEl.innerText; // 获取新文本
+            const currentSel = window.getSelection();
+            if (currentSel) currentSel.removeAllRanges();
+            render(); // 强制重绘，恢复链接样式等
+        };
+
+        // 仅绑定一次 blur，防止多次触发
+        nodeEl.onblur = () => {
+            nodeEl.onblur = null; // 清理事件
+            finishEdit();
+        };
+        
+        nodeEl.onkeydown = (ev) => {
+            if (ev.key === 'Enter' && !ev.shiftKey) { // 允许 Shift+Enter 换行，Enter 完成
+                ev.preventDefault();
+                nodeEl.blur();
+            }
+            ev.stopPropagation();
+        };
     }
+}
+
+// 鼠标双击监听保持不变，只需调用上面的函数
+els.container.addEventListener('dblclick', e => {
+    const nodeEl = e.target.closest('.node');
+    handleNodeEdit(nodeEl);
 });
 
 window.addEventListener('keydown', e => {
