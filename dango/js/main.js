@@ -542,29 +542,34 @@ function syncDomElements(dataArray, parent, className, renderFn) {
 function renderNode(el, node) {
     el.style.transform = `translate(${node.x}px, ${node.y}px)`;
     
+    // ✨ 修复点 1：如果当前节点正在编辑，跳过内容更新逻辑，只更新位置和状态
+    // el === document.activeElement 是为了确保万无一失
+    if (el.classList.contains('editing') || el === document.activeElement) {
+        // 仅同步选中状态和颜色 class，不要动 innerHTML 或 innerText
+        const isSelected = state.selection.has(node.id);
+        el.className = `node ${node.color || 'c-white'} ${isSelected ? 'selected' : ''} editing`;
+        return; 
+    }
+
     // --- 链接识别逻辑 ---
     if (isUrl(node.text)) {
         el.classList.add('is-link');
-        
-        // 1. 查找或创建文本容器
+        // ... (保持你原有的链接处理逻辑)
         let textEl = el.querySelector('.node-text');
         if (!textEl) {
-            el.innerHTML = ''; // 清空可能存在的纯文本
+            el.innerHTML = ''; 
             textEl = document.createElement('div');
             textEl.className = 'node-text';
             el.appendChild(textEl);
         }
         if (textEl.innerText !== node.text) textEl.innerText = node.text;
 
-        // 2. 查找或创建跳转按钮
         let btnEl = el.querySelector('.link-btn');
         if (!btnEl) {
             btnEl = document.createElement('div');
             btnEl.className = 'link-btn';
             btnEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>'; // 使用 SVG 图标更精致
-            // btnEl.title = "Open Link";
-            
-            // 阻止冒泡：防止点击按钮时触发节点选择或拖拽
+
             btnEl.onmousedown = (e) => e.stopPropagation();
             btnEl.onclick = (e) => {
                 e.stopPropagation();
@@ -574,31 +579,28 @@ function renderNode(el, node) {
             };
             el.appendChild(btnEl);
         }
-
     } else {
         // --- 普通文本逻辑 ---
         el.classList.remove('is-link');
-        // 如果之前是链接结构，现在变回文本了，或者本来就是文本
-        // 为了安全，如果里面有 .node-text 结构，先清理
         if (el.querySelector('.node-text')) el.innerHTML = '';
-        
-        if (el.innerText !== node.text && !el.isContentEditable) el.innerText = node.text;
+        // ✨ 修复点 2：这里原本的 !el.isContentEditable 已经起了一定作用，
+        // 但上面的“提前退出”更彻底
+        if (el.innerText !== node.text) el.innerText = node.text;
     }
 
     // --- 通用样式处理 ---
     const isSelected = state.selection.has(node.id);
     const classes = ['node'];
-    if (isUrl(node.text)) classes.push('is-link'); // 确保 class 存在
+    if (isUrl(node.text)) classes.push('is-link');
     classes.push(node.color || 'c-white');
     if (isSelected) classes.push('selected');
-    
-    // 注意：el.className 赋值会覆盖上面的 add/remove，所以我们要合并
     el.className = classes.join(' ');
 
     if (!node.w || !node.h || el.offsetWidth !== node.w) {
         node.w = el.offsetWidth; node.h = el.offsetHeight;
     }
 }
+
 
 function renderGroup(el, group) {
     el.style.transform = `translate(${group.x}px, ${group.y}px)`;
@@ -1170,7 +1172,12 @@ function handleNodeEdit(nodeEl) {
             node.text = nodeEl.innerText; // 获取新文本
             const currentSel = window.getSelection();
             if (currentSel) currentSel.removeAllRanges();
-            render(); // 强制重绘，恢复链接样式等
+            // 只有当文字真的变了，才更新数据并渲染
+            if (node.text !== nodeEl.innerText) {
+                node.text = nodeEl.innerText;
+                // 注意：这里调用 render() 是安全的，因为此时 editing class 已移除
+                render(); 
+            }
         };
 
         // 仅绑定一次 blur，防止多次触发
@@ -1681,18 +1688,18 @@ let fontsLoaded = false;
 
 // 2. 动态加载字体函数
 function loadHandDrawnFonts() {
-    if (fontsLoaded) return;
+    if (fontsLoaded || document.getElementById('hand-drawn-fonts')) return;
 
     const link = document.createElement('link');
+    link.id = 'hand-drawn-fonts'; // 增加 ID 防止重复插入
     link.rel = 'stylesheet';
-    // 引入 Architects Daughter (英) 和 霞鹜文楷 (中)
-    // 使用国内 CDN 镜像或 Google Fonts (霞鹜文楷在 Google Fonts 上叫 LXGW WenKai)
-    link.href = 'https://fonts.googleapis.com/css2?family=Architects+Daughter&family=LXGW+WenKai+Mono+TC&display=swap';
+    // 💡 优化：在 URL 后面增加 &display=block 减少闪烁（虽然 swap 也不错，但 block 在打字时更稳定）
+    link.href = 'https://fonts.googleapis.com/css2?family=Architects+Daughter&family=LXGW+WenKai+Mono+TC&display=block';
 
     document.head.appendChild(link);
     fontsLoaded = true;
-    console.log("Hand-drawn fonts loading started...");
 }
+
 
 // 3. 绑定开关
 checkHandDrawn.onchange = (e) => {

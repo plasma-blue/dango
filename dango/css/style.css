@@ -629,6 +629,10 @@ button.btn-danger:hover {
     box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
     user-select: text;
     -webkit-user-select: text;
+    /* 编辑时禁用过渡，防止内容变化导致的位移/阴影动画干扰打字 */
+    transition: none !important; 
+    /* 保持字体稳定 */
+    font-variant-ligatures: none;
 }
 
 .node.c-white {
@@ -776,6 +780,7 @@ body.hide-grid {
 .hand-drawn-style {
     /* 英文使用 Architects Daughter，中文自动回退到 LXGW WenKai Mono TC */
     font-family: 'Architects Daughter', 'LXGW WenKai Mono TC', cursive !important;
+    font-display: swap;
 }
 
 /* 配合手写字体，节点可以稍微增加一点点倾斜感 */
