@@ -57,6 +57,7 @@ const TRANSLATIONS = {
         star_on_github: "在 GitHub 上点星支持",
         blog_link: "开发博客",
         buy_coffee: "请喝咖啡",
+        alert_file_err: "文件格式错误，请上传 .dango 文件",
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -115,6 +116,7 @@ const TRANSLATIONS = {
         star_on_github: "Star on GitHub",
         blog_link: "Dev Blog",
         buy_coffee: "Buy me a coffee",
+        alert_file_err: "Invalid format, please upload .dango file",
     }
 };
 
@@ -640,6 +642,35 @@ function updateSeasonalLogo() {
 updateSeasonalLogo();
 // --- Interactions ---
 document.getElementById('btn-add').onclick = createNodesFromInput;
+
+// --- 新增：拖拽导入功能 ---
+
+// 阻止浏览器默认打开文件的行为
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    els.container.addEventListener(eventName, e => {
+        e.preventDefault();
+        e.stopPropagation();
+    }, false);
+});
+
+// 拖拽进入/经过时显示视觉提示
+els.container.addEventListener('dragover', () => {
+    els.container.classList.add('drag-over');
+});
+
+// 拖拽离开或结束时隐藏提示
+['dragleave', 'drop'].forEach(eventName => {
+    els.container.addEventListener(eventName, () => {
+        els.container.classList.remove('drag-over');
+    });
+});
+
+// 处理放下文件
+els.container.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const file = dt.files[0];
+    processDangoFile(file);
+});
 
 els.input.addEventListener('keydown', (e) => {
     // 识别 Ctrl + Enter (Windows) 或 Cmd + Enter (Mac)
@@ -1435,26 +1466,54 @@ function cloneSelectionInPlace() {
     // 原来的节点（带线的）会留在原地，鼠标现在拖拽的是新生成的副本
     state.selection = newSelection;
 }
-// document.getElementById('btn-export').onclick = exportJson;
-document.getElementById('file-input').onchange = (e) => {
-    const file = e.target.files[0]; if (!file) return;
+
+// --- 新增：通用文件处理逻辑 ---
+function processDangoFile(file) {
+    if (!file) return;
+    
+    // 检查文件后缀（非强制，但更安全）
+    if (!file.name.endsWith('.dango') && !file.name.endsWith('.json')) {
+        showToast(TRANSLATIONS[currentLang].alert_file_err);
+        return;
+    }
+
     const reader = new FileReader();
     reader.onload = (ev) => {
         try {
             const data = JSON.parse(ev.target.result);
+            
+            // 备份当前数据以供撤销
+            let oldSnapshot = null;
+            if (state.nodes.length > 0) {
+                oldSnapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links] };
+            }
+            
             pushHistory();
+            
+            // 加载新数据
             state.nodes = data.nodes || [];
             state.groups = data.groups || [];
             state.links = data.links || [];
             state.selection.clear();
+            
             render();
-            // 🍞 纯成功的 Toast
-            showToast(TRANSLATIONS[currentLang].toast_import_success);
+            // 🍞 成功提示
+            showToast(TRANSLATIONS[currentLang].toast_import_success, oldSnapshot);
         }
-        catch (err) { alert(TRANSLATIONS[currentLang].alert_file_err); }
+        catch (err) {
+            console.error(err);
+            showToast(TRANSLATIONS[currentLang].alert_file_err);
+        }
     };
-    reader.readAsText(file); e.target.value = '';
+    reader.readAsText(file);
+}
+
+// document.getElementById('btn-export').onclick = exportJson;
+document.getElementById('file-input').onchange = (e) => {
+    processDangoFile(e.target.files[0]);
+    e.target.value = ''; // 清空 input 方便重复导入同一文件
 };
+
 
 document.getElementById('btn-import-main').onclick = () => {
     document.getElementById('file-input').click();

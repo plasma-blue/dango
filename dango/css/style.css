@@ -1153,3 +1153,16 @@ body.is-empty .empty-state {
     color: var(--select-color);
     background: var(--ui-hover-bg);
 }
+
+/* --- 拖拽导入视觉反馈 --- */
+#canvas-container.drag-over {
+    outline: 3px dashed var(--select-color);
+    outline-offset: -10px;
+    background-color: var(--ui-selection-bg);
+    transition: all 0.2s ease;
+}
+
+/* 在拖拽时禁用容器内元素的指针事件，防止干扰 */
+#canvas-container.drag-over * {
+    pointer-events: none;
+}
