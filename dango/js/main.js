@@ -1526,12 +1526,12 @@ document.getElementById('btn-import-main').onclick = () => {
     document.getElementById('file-input').click();
 };
 
+
 function exportToSVG() {
     if (state.nodes.length === 0) return;
 
-    // 1. 计算所有元素（节点+组）的包围盒
+    // 1. 计算包围盒
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-
     const elements = [...state.nodes, ...state.groups];
     elements.forEach(el => {
         minX = Math.min(minX, el.x);
@@ -1540,32 +1540,62 @@ function exportToSVG() {
         maxY = Math.max(maxY, el.y + (el.h || 40));
     });
 
-    const padding = 60; // 留白
+    const padding = 80; 
     const width = maxX - minX + padding * 2;
     const height = maxY - minY + padding * 2;
     const offsetX = -minX + padding;
     const offsetY = -minY + padding;
 
-    // 2. 获取当前主题的颜色样式
     const bodyStyle = getComputedStyle(document.body);
     const bgColor = bodyStyle.backgroundColor;
+    const dotColor = bodyStyle.getPropertyValue('--dot-color').trim() || '#cbd5e1';
     const groupBorderColor = bodyStyle.getPropertyValue('--group-border').trim();
     const groupBgColor = bodyStyle.getPropertyValue('--group-bg').trim();
     const linkColor = bodyStyle.getPropertyValue('--link-color').trim();
 
-    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+    const isHandDrawn = state.settings.handDrawn;
+    const fontFamily = isHandDrawn 
+        ? "'Architects Daughter', 'LXGW WenKai Mono TC', cursive" 
+        : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    
+    // 左右内边距，需与 CSS 中的 padding 保持视觉一致 (20px)
+    const nodePaddingX = 20;
 
-    // --- 层级 1: 完整背景 ---
+    let defsContent = `
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Architects+Daughter&amp;family=LXGW+WenKai+Mono+TC&amp;display=swap');
+        .node-text { font-family: ${fontFamily}; font-size: 14px; font-weight: 500; }
+        .link-node { cursor: pointer; }
+    </style>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+        <circle cx="1.5" cy="1.5" r="1.5" fill="${dotColor}" />
+    </pattern>`;
+
+    // 为每个节点生成裁剪路径，确保文字从左往右显示，多出的部分在右侧切断
+    state.nodes.forEach(n => {
+        defsContent += `
+        <clipPath id="clip-${n.id}">
+            <rect x="${n.x + offsetX + nodePaddingX}" y="${n.y + offsetY}" width="${n.w - nodePaddingX * 2}" height="${n.h}" />
+        </clipPath>`;
+    });
+
+    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+<defs>${defsContent}</defs>`;
+
+    // --- 层级 1: 背景与网格 ---
     svgContent += `<rect width="100%" height="100%" fill="${bgColor}"/>`;
+    if (!state.settings.hideGrid) {
+        svgContent += `<rect width="100%" height="100%" fill="url(#grid)"/>`;
+    }
 
-    // --- 层级 2: 绘制 组 (Groups) ---
+    // --- 层级 2: 绘制 组 ---
     state.groups.forEach(g => {
         svgContent += `<rect x="${g.x + offsetX}" y="${g.y + offsetY}" width="${g.w}" height="${g.h}" 
             rx="20" ry="20" fill="${groupBgColor}" stroke="${groupBorderColor}" 
             stroke-width="2" stroke-dasharray="5,5" />`;
     });
 
-    // --- 层级 3: 绘制 连线 (Links) ---
+    // --- 层级 3: 绘制 连线 ---
     state.links.forEach(l => {
         const n1 = state.nodes.find(n => n.id === l.sourceId);
         const n2 = state.nodes.find(n => n.id === l.targetId);
@@ -1577,28 +1607,58 @@ function exportToSVG() {
         }
     });
 
-    // --- 层级 4: 绘制 节点 (Nodes) ---
+    // --- 层级 4: 绘制 节点 ---
     state.nodes.forEach(n => {
         const el = document.querySelector(`.node[data-id="${n.id}"]`);
         if (!el) return;
         const style = getComputedStyle(el);
         const nodeBg = style.backgroundColor;
         const nodeStroke = style.borderColor;
-        const nodeText = style.color;
+        const nodeTextColor = style.color;
+        const isLink = isUrl(n.text);
+        const rx = isHandDrawn ? 18 : 12;
 
-        svgContent += `
+        // 文字起始位置：x 坐标设为 节点起始x + 左边距
+        // 对齐方式：text-anchor="start" (左对齐)
+        let textX = n.x + offsetX + nodePaddingX;
+        let textAnchor = "start";
+
+        // 如果不是链接，保持居中对齐（符合普通节点视觉）
+        if (!isLink) {
+            textX = n.x + n.w / 2 + offsetX;
+            textAnchor = "middle";
+        }
+
+        let nodeMarkup = `
             <rect x="${n.x + offsetX}" y="${n.y + offsetY}" width="${n.w}" height="${n.h}" 
-                rx="12" ry="12" fill="${nodeBg}" stroke="${nodeStroke}" stroke-width="1" />
-            <text x="${n.x + n.w / 2 + offsetX}" y="${n.y + n.h / 2 + offsetY}" 
-                dominant-baseline="central" text-anchor="middle" 
-                font-family="sans-serif" font-size="14" font-weight="500" fill="${nodeText}">${escapeHtml(n.text)}</text>
+                rx="${rx}" ry="${rx}" fill="${nodeBg}" stroke="${nodeStroke}" stroke-width="${isLink ? 1.5 : 1}" />
+            <text x="${textX}" y="${n.y + n.h / 2 + offsetY}" 
+                class="node-text" clip-path="url(#clip-${n.id})"
+                dominant-baseline="central" text-anchor="${textAnchor}" 
+                fill="${nodeTextColor}">${escapeHtml(n.text)}</text>
         `;
+
+        if (isLink) {
+            let fullUrl = n.text.trim();
+            if (!fullUrl.startsWith('http')) fullUrl = 'https://' + fullUrl;
+            
+            // 下划线位置计算：从左边距开始，到右边距结束
+            const lineY = n.y + n.h / 2 + offsetY + 8;
+            const lineX1 = n.x + offsetX + nodePaddingX;
+            const lineX2 = n.x + offsetX + n.w - nodePaddingX;
+
+            nodeMarkup = `
+            <a xlink:href="${escapeHtml(fullUrl)}" target="_blank" class="link-node">
+                ${nodeMarkup}
+                <line x1="${lineX1}" y1="${lineY}" x2="${lineX2}" y2="${lineY}" stroke="${nodeTextColor}" stroke-width="1" opacity="0.4" />
+            </a>`;
+        }
+
+        svgContent += nodeMarkup;
     });
 
     svgContent += `</svg>`;
-
-    // 触发下载
-    downloadBlob(svgContent, `concept-canvas_${getTimestamp()}.svg`, 'image/svg+xml');
+    downloadBlob(svgContent, `dango-board_${getTimestamp()}.svg`, 'image/svg+xml');
 }
 
 // 辅助：转义 HTML 特殊字符防止 SVG 报错
