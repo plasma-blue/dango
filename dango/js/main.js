@@ -47,6 +47,7 @@ const TRANSLATIONS = {
         btn_export_link: "链接",
         btn_export_file: "文件",
         btn_export_svg: "矢量图",
+        btn_export_png: "图片",
         help_group: "编组 / 解组",
         help_link: "连线 / 断线",
         help_align: "方向对齐",
@@ -106,6 +107,7 @@ const TRANSLATIONS = {
         btn_export_link: "LINK",
         btn_export_file: "FILE",
         btn_export_svg: "SVG",
+        btn_export_png: "PNG",
         help_group: "Group / Ungroup",
         help_link: "Link / Unlink",
         help_align: "Align Direction",
@@ -1527,20 +1529,18 @@ document.getElementById('btn-import-main').onclick = () => {
 };
 
 
-function exportToSVG() {
-    if (state.nodes.length === 0) return;
-
-    // 1. 计算包围盒
+// 辅助函数：生成 SVG 字符串 (提取自之前的逻辑)
+function getSvgString() {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     const elements = [...state.nodes, ...state.groups];
+    if (elements.length === 0) return null;
+
     elements.forEach(el => {
-        minX = Math.min(minX, el.x);
-        minY = Math.min(minY, el.y);
-        maxX = Math.max(maxX, el.x + (el.w || 100));
-        maxY = Math.max(maxY, el.y + (el.h || 40));
+        minX = Math.min(minX, el.x); minY = Math.min(minY, el.y);
+        maxX = Math.max(maxX, el.x + (el.w || 100)); maxY = Math.max(maxY, el.y + (el.h || 40));
     });
 
-    const padding = 80; 
+    const padding = 80;
     const width = maxX - minX + padding * 2;
     const height = maxY - minY + padding * 2;
     const offsetX = -minX + padding;
@@ -1552,113 +1552,87 @@ function exportToSVG() {
     const groupBorderColor = bodyStyle.getPropertyValue('--group-border').trim();
     const groupBgColor = bodyStyle.getPropertyValue('--group-bg').trim();
     const linkColor = bodyStyle.getPropertyValue('--link-color').trim();
-
     const isHandDrawn = state.settings.handDrawn;
-    const fontFamily = isHandDrawn 
-        ? "'Architects Daughter', 'LXGW WenKai Mono TC', cursive" 
-        : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    
-    // 左右内边距，需与 CSS 中的 padding 保持视觉一致 (20px)
+    const fontFamily = isHandDrawn ? "'Architects Daughter', 'LXGW WenKai Mono TC', cursive" : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     const nodePaddingX = 20;
 
-    let defsContent = `
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Architects+Daughter&amp;family=LXGW+WenKai+Mono+TC&amp;display=swap');
-        .node-text { font-family: ${fontFamily}; font-size: 14px; font-weight: 500; }
-        .link-node { cursor: pointer; }
-    </style>
-    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
-        <circle cx="1.5" cy="1.5" r="1.5" fill="${dotColor}" />
-    </pattern>`;
-
-    // 为每个节点生成裁剪路径，确保文字从左往右显示，多出的部分在右侧切断
+    let defsContent = `<style>@import url('https://fonts.googleapis.com/css2?family=Architects+Daughter&amp;family=LXGW+WenKai+Mono+TC&amp;display=swap'); .node-text { font-family: ${fontFamily}; font-size: 14px; font-weight: 500; }</style><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.5" fill="${dotColor}" /></pattern>`;
     state.nodes.forEach(n => {
-        defsContent += `
-        <clipPath id="clip-${n.id}">
-            <rect x="${n.x + offsetX + nodePaddingX}" y="${n.y + offsetY}" width="${n.w - nodePaddingX * 2}" height="${n.h}" />
-        </clipPath>`;
+        defsContent += `<clipPath id="clip-${n.id}"><rect x="${n.x + offsetX + nodePaddingX}" y="${n.y + offsetY}" width="${n.w - nodePaddingX * 2}" height="${n.h}" /></clipPath>`;
     });
 
-    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-<defs>${defsContent}</defs>`;
+    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs>${defsContent}</defs><rect width="100%" height="100%" fill="${bgColor}"/>`;
+    if (!state.settings.hideGrid) svgContent += `<rect width="100%" height="100%" fill="url(#grid)"/>`;
 
-    // --- 层级 1: 背景与网格 ---
-    svgContent += `<rect width="100%" height="100%" fill="${bgColor}"/>`;
-    if (!state.settings.hideGrid) {
-        svgContent += `<rect width="100%" height="100%" fill="url(#grid)"/>`;
-    }
-
-    // --- 层级 2: 绘制 组 ---
     state.groups.forEach(g => {
-        svgContent += `<rect x="${g.x + offsetX}" y="${g.y + offsetY}" width="${g.w}" height="${g.h}" 
-            rx="20" ry="20" fill="${groupBgColor}" stroke="${groupBorderColor}" 
-            stroke-width="2" stroke-dasharray="5,5" />`;
+        svgContent += `<rect x="${g.x + offsetX}" y="${g.y + offsetY}" width="${g.w}" height="${g.h}" rx="20" ry="20" fill="${groupBgColor}" stroke="${groupBorderColor}" stroke-width="2" stroke-dasharray="5,5" />`;
     });
 
-    // --- 层级 3: 绘制 连线 ---
     state.links.forEach(l => {
-        const n1 = state.nodes.find(n => n.id === l.sourceId);
-        const n2 = state.nodes.find(n => n.id === l.targetId);
+        const n1 = state.nodes.find(n => n.id === l.sourceId), n2 = state.nodes.find(n => n.id === l.targetId);
         if (n1 && n2) {
-            const c1 = { x: n1.x + (n1.w || 0) / 2 + offsetX, y: n1.y + (n1.h || 0) / 2 + offsetY };
-            const c2 = { x: n2.x + (n2.w || 0) / 2 + offsetX, y: n2.y + (n2.h || 0) / 2 + offsetY };
-            svgContent += `<line x1="${c1.x}" y1="${c1.y}" x2="${c2.x}" y2="${c2.y}" 
-                stroke="${linkColor}" stroke-width="2" opacity="0.5" />`;
+            const c1 = { x: n1.x + (n1.w || 0) / 2 + offsetX, y: n1.y + (n1.h || 0) / 2 + offsetY }, c2 = { x: n2.x + (n2.w || 0) / 2 + offsetX, y: n2.y + (n2.h || 0) / 2 + offsetY };
+            svgContent += `<line x1="${c1.x}" y1="${c1.y}" x2="${c2.x}" y2="${c2.y}" stroke="${linkColor}" stroke-width="2" opacity="0.5" />`;
         }
     });
 
-    // --- 层级 4: 绘制 节点 ---
     state.nodes.forEach(n => {
         const el = document.querySelector(`.node[data-id="${n.id}"]`);
         if (!el) return;
-        const style = getComputedStyle(el);
-        const nodeBg = style.backgroundColor;
-        const nodeStroke = style.borderColor;
-        const nodeTextColor = style.color;
-        const isLink = isUrl(n.text);
-        const rx = isHandDrawn ? 18 : 12;
+        const style = getComputedStyle(el), nodeBg = style.backgroundColor, nodeStroke = style.borderColor, nodeTextColor = style.color, isLink = isUrl(n.text), rx = isHandDrawn ? 18 : 12;
+        let textX = isLink ? n.x + offsetX + nodePaddingX : n.x + n.w / 2 + offsetX;
+        let textAnchor = isLink ? "start" : "middle";
 
-        // 文字起始位置：x 坐标设为 节点起始x + 左边距
-        // 对齐方式：text-anchor="start" (左对齐)
-        let textX = n.x + offsetX + nodePaddingX;
-        let textAnchor = "start";
-
-        // 如果不是链接，保持居中对齐（符合普通节点视觉）
-        if (!isLink) {
-            textX = n.x + n.w / 2 + offsetX;
-            textAnchor = "middle";
-        }
-
-        let nodeMarkup = `
-            <rect x="${n.x + offsetX}" y="${n.y + offsetY}" width="${n.w}" height="${n.h}" 
-                rx="${rx}" ry="${rx}" fill="${nodeBg}" stroke="${nodeStroke}" stroke-width="${isLink ? 1.5 : 1}" />
-            <text x="${textX}" y="${n.y + n.h / 2 + offsetY}" 
-                class="node-text" clip-path="url(#clip-${n.id})"
-                dominant-baseline="central" text-anchor="${textAnchor}" 
-                fill="${nodeTextColor}">${escapeHtml(n.text)}</text>
-        `;
-
+        let nodeMarkup = `<rect x="${n.x + offsetX}" y="${n.y + offsetY}" width="${n.w}" height="${n.h}" rx="${rx}" ry="${rx}" fill="${nodeBg}" stroke="${nodeStroke}" stroke-width="${isLink ? 1.5 : 1}" /><text x="${textX}" y="${n.y + n.h / 2 + offsetY}" class="node-text" clip-path="url(#clip-${n.id})" dominant-baseline="central" text-anchor="${textAnchor}" fill="${nodeTextColor}">${escapeHtml(n.text)}</text>`;
+        
         if (isLink) {
-            let fullUrl = n.text.trim();
-            if (!fullUrl.startsWith('http')) fullUrl = 'https://' + fullUrl;
-            
-            // 下划线位置计算：从左边距开始，到右边距结束
-            const lineY = n.y + n.h / 2 + offsetY + 8;
-            const lineX1 = n.x + offsetX + nodePaddingX;
-            const lineX2 = n.x + offsetX + n.w - nodePaddingX;
-
-            nodeMarkup = `
-            <a xlink:href="${escapeHtml(fullUrl)}" target="_blank" class="link-node">
-                ${nodeMarkup}
-                <line x1="${lineX1}" y1="${lineY}" x2="${lineX2}" y2="${lineY}" stroke="${nodeTextColor}" stroke-width="1" opacity="0.4" />
-            </a>`;
+            let fullUrl = n.text.trim(); if (!fullUrl.startsWith('http')) fullUrl = 'https://' + fullUrl;
+            const lineY = n.y + n.h / 2 + offsetY + 8, lineX1 = n.x + offsetX + nodePaddingX, lineX2 = n.x + offsetX + n.w - nodePaddingX;
+            nodeMarkup = `<a xlink:href="${escapeHtml(fullUrl)}" target="_blank"><g>${nodeMarkup}<line x1="${lineX1}" y1="${lineY}" x2="${lineX2}" y2="${lineY}" stroke="${nodeTextColor}" stroke-width="1" opacity="0.4" /></g></a>`;
         }
-
         svgContent += nodeMarkup;
     });
 
-    svgContent += `</svg>`;
-    downloadBlob(svgContent, `dango-board_${getTimestamp()}.svg`, 'image/svg+xml');
+    return { html: svgContent + `</svg>`, width, height };
+}
+
+// 核心功能：统一导出图片函数
+function downloadImage(format = 'png') {
+    const svgData = getSvgString();
+    if (!svgData) return;
+
+    if (format === 'svg') {
+        downloadBlob(svgData.html, `dango_${getTimestamp()}.svg`, 'image/svg+xml');
+        return;
+    }
+
+    // PNG 导出逻辑
+    const canvas = document.createElement('canvas');
+    // 设置 2 倍缩放以保证高清 (Retina 效果)
+    const dpr = 2;
+    canvas.width = svgData.width * dpr;
+    canvas.height = svgData.height * dpr;
+    const ctx = canvas.getContext('2d');
+
+    const img = new Image();
+    // 使用 Blob 确保字符编码正确
+    const svgBlob = new Blob([svgData.html], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.scale(dpr, dpr);
+        ctx.drawImage(img, 0, 0);
+        
+        canvas.toBlob((blob) => {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `dango_${getTimestamp()}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }, 'image/png');
+    };
+    img.src = url;
 }
 
 // 辅助：转义 HTML 特殊字符防止 SVG 报错
@@ -1703,10 +1677,16 @@ document.getElementById('opt-json').onclick = (e) => {
     resetActionStack(); // 点击即消失
 };
 
+document.getElementById('opt-png').onclick = (e) => {
+    e.stopPropagation();
+    downloadImage('png'); // 默认 PNG
+    resetActionStack();
+};
+
 document.getElementById('opt-svg').onclick = (e) => {
     e.stopPropagation();
-    exportToSVG();
-    resetActionStack(); // 点击即消失
+    downloadImage('svg'); // 选中的 SVG
+    resetActionStack();
 };
 
 document.getElementById('opt-link').onclick = (e) => {
