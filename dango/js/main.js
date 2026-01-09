@@ -700,6 +700,105 @@ els.input.addEventListener('keydown', (e) => {
         createNodesFromInput();
     }
 });
+function unpackData(packed) {
+    const [version, pNodes, pGroups, pLinks, pSettings] = packed;
+    
+    // 由于 pack 时用了数字索引，解包时我们需要重新生成符合当前逻辑的 ID
+    const shortToLongId = {};
+    const genNewId = (shortId) => {
+        const newId = uid();
+        shortToLongId[shortId] = newId;
+        return newId;
+    };
+
+    // 1. 恢复节点
+    const nodes = pNodes.map(n => ({
+        id: genNewId(n[0]),
+        text: n[1],
+        x: n[2], y: n[3], w: n[4], h: n[5],
+        color: CONFIG.colors[n[6]] || 'c-white'
+    }));
+
+    // 2. 恢复组 (先占位 ID，后续映射成员)
+    const groups = pGroups.map(g => ({
+        id: genNewId(g[0]),
+        x: g[1], y: g[2], w: g[3], h: g[4],
+        _tempMemberIds: g[5] // 临时存储短 ID
+    }));
+
+    // 3. 映射组内成员 ID
+    groups.forEach(g => {
+        g.memberIds = g._tempMemberIds.map(sid => shortToLongId[sid]).filter(id => id);
+        delete g._tempMemberIds;
+    });
+
+    // 4. 恢复连线
+    const links = pLinks.map(l => ({
+        id: uid(),
+        sourceId: shortToLongId[l[0]],
+        targetId: shortToLongId[l[1]]
+    })).filter(l => l.sourceId && l.targetId);
+
+    // 5. 恢复设置
+    const settings = pSettings ? {
+        preciseLayout: pSettings[0] === 1,
+        hideGrid: pSettings[1] === 1,
+        handDrawn: pSettings[2] === 1,
+        copyMode: pSettings[3] === 1
+    } : state.settings;
+
+    return { nodes, groups, links, settings };
+}
+
+// 数据封包：将冗长的 state 转换为极致精简的数组结构
+function packData() {
+    // 1. 建立 ID 映射表，将长 ID 映射为短数字
+    const idMap = {};
+    let idCounter = 0;
+    const allIds = [
+        ...state.nodes.map(n => n.id),
+        ...state.groups.map(g => g.id)
+    ];
+    allIds.forEach(id => idMap[id] = idCounter++);
+
+    // 2. 压缩节点: [id, text, x, y, w, h, colorIdx]
+    const pNodes = state.nodes.map(n => [
+        idMap[n.id],
+        n.text,
+        Math.round(n.x),
+        Math.round(n.y),
+        Math.round(n.w),
+        Math.round(n.h),
+        CONFIG.colors.indexOf(n.color || 'c-white')
+    ]);
+
+    // 3. 压缩组: [id, x, y, w, h, [memberIds]]
+    const pGroups = state.groups.map(g => [
+        idMap[g.id],
+        Math.round(g.x),
+        Math.round(g.y),
+        Math.round(g.w),
+        Math.round(g.h),
+        g.memberIds.map(mid => idMap[mid])
+    ]);
+
+    // 4. 压缩连线: [sourceId, targetId]
+    const pLinks = state.links.map(l => [
+        idMap[l.sourceId],
+        idMap[l.targetId]
+    ]);
+
+    // 5. 压缩设置: 仅存储关键开关位 (使用 Bitmask 或小数组)
+    const pSettings = [
+        state.settings.preciseLayout ? 1 : 0,
+        state.settings.hideGrid ? 1 : 0,
+        state.settings.handDrawn ? 1 : 0,
+        state.settings.copyMode ? 1 : 0
+    ];
+
+    // 返回最终嵌套数组：[版本号, 节点, 组, 连线, 设置]
+    return [1, pNodes, pGroups, pLinks, pSettings];
+}
 
 const btnClear = document.getElementById('btn-clear');
 let clearConfirm = false;
@@ -1828,25 +1927,18 @@ window.addEventListener('click', () => {
 });
 
 function createShareLink() {
-    const data = JSON.stringify({
-        nodes: state.nodes,
-        groups: state.groups,
-        links: state.links,
-        settings: state.settings
-    });
-
-    const compressed = LZString.compressToEncodedURIComponent(data);
-
-    // ✅ 修复本地文件路径问题
+    const packed = packData();
+    // 现在压缩的是极致精简的数组，JSON 字符串长度会缩减 60%-80%
+    const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(packed));
+    
     const baseUrl = window.location.href.split('#')[0];
     const url = baseUrl + '#' + compressed;
 
     navigator.clipboard.writeText(url).then(() => {
-        // ✅ 使用 Toast 代替 Alert
-        const msg = currentLang === 'zh' ? "链接已复制到剪贴板 ✨" : "Link copied to clipboard ✨";
-        showToast(msg);
+        showToast(currentLang === 'zh' ? "链接已复制到剪贴板 ✨" : "Link copied to clipboard ✨");
     });
 }
+
 state.settings.handDrawn = localStorage.getItem('cc-hand-drawn') === 'true';
 
 let fontsLoaded = false;
@@ -1889,8 +1981,12 @@ function loadFromUrl() {
     try {
         const decompressed = LZString.decompressFromEncodedURIComponent(hash);
         if (!decompressed) return false;
-        const data = JSON.parse(decompressed);
+        
+        const dataRaw = JSON.parse(decompressed);
+        // 判断是否是新版数组封包结构
+        const data = Array.isArray(dataRaw) ? unpackData(dataRaw) : dataRaw;
 
+        // ... 后续加载逻辑不变 (pushHistory, render, showToast) ...
         // 💾 捕捉旧数据快照
         let oldSnapshot = null;
         if (state.nodes.length > 0) {
@@ -1898,21 +1994,20 @@ function loadFromUrl() {
             pushHistory();
         }
 
-        state.nodes = data.nodes || [];
-        state.groups = data.groups || [];
-        state.links = data.links || [];
+        state.nodes = data.nodes;
+        state.groups = data.groups;
+        state.links = data.links;
         if (data.settings) state.settings = { ...state.settings, ...data.settings };
 
         render();
         applySettings();
         applyHandDrawnStyle();
 
-        // 🍞 弹出带“救命稻草”的 Toast
         showToast(TRANSLATIONS[currentLang].toast_imported, oldSnapshot);
-
         window.history.replaceState(null, null, window.location.pathname);
         return true;
     } catch (e) {
+        console.error("Import failed:", e);
         return false;
     }
 }
