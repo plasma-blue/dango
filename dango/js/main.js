@@ -558,6 +558,7 @@ function syncDomElements(dataArray, parent, className, renderFn) {
 }
 
 function renderNode(el, node) {
+    el.setAttribute('role', 'button'); // 让节点可被 Vimium C 选中
     el.style.transform = `translate(${node.x}px, ${node.y}px)`;
     
     // ✨ 修复点 1：如果当前节点正在编辑，跳过内容更新逻辑，只更新位置和状态
@@ -1228,8 +1229,77 @@ els.container.addEventListener('dblclick', e => {
 
 window.addEventListener('keydown', e => {
     // 如果正在输入，跳过
-    if (e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+    const isEditing = e.target.isContentEditable || e.target.tagName === 'TEXTAREA';
+    
+    // 1. 如果正在编辑，ESC 退出编辑而不取消选中，Enter 结束编辑
+    if (isEditing) {
+        if (e.code === 'Escape') {
+            e.target.blur(); // 触发 blur 会保存并退出
+            e.stopPropagation(); // 阻止 ESC 进一步影响 UI
+            return;
+        }
+        if (e.code === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            e.target.blur();
+            return;
+        }
+        return; // 编辑状态下不触发其他快捷键
+    }
+
     keys[e.code] = true;
+
+    // 2. 画布缩放拦截 (Ctrl + +/-/0)
+    if (isModifier(e)) {
+        if (e.key === '=' || e.key === '+') {
+            e.preventDefault();
+            changeZoom(1.2); 
+            return;
+        }
+        if (e.key === '-') {
+            e.preventDefault();
+            changeZoom(0.8);
+            return;
+        }
+        if (e.key === '0') {
+            e.preventDefault();
+            resetViewToCenter(true);
+            return;
+        }
+    }
+
+    // 3. 回车编辑选中的节点
+    if (e.code === 'Enter' && state.selection.size === 1) {
+        e.preventDefault();
+        const selectedId = Array.from(state.selection)[0];
+        const nodeEl = document.querySelector(`.node[data-id="${selectedId}"]`);
+        if (nodeEl) handleNodeEdit(nodeEl);
+        return;
+    }
+    
+    // 4. 优化 ESC 逻辑
+    if (e.code === 'Escape') {
+        // 关闭关于面板
+        if (aboutOverlay.classList.contains('show')) {
+            closeAbout();
+            return;
+        }
+        // 关闭设置或帮助
+        const isSettingsOpen = modalSettings.classList.contains('show');
+        const isHelpOpen = els.helpModal.classList.contains('show');
+        if (isSettingsOpen || isHelpOpen) {
+            modalSettings.classList.remove('show');
+            btnSettings.classList.remove('active');
+            els.helpModal.classList.remove('show');
+            els.btnHelp.classList.remove('active');
+            els.uiLayer.classList.remove('is-active'); // 移除强制展开类
+            return;
+        }
+        // 最后才是清除选中
+        if (state.selection.size > 0) {
+            state.selection.clear();
+            render();
+        }
+    }
 
     if (e.code === 'Space') { e.preventDefault(); document.body.classList.add('mode-space'); }
 
@@ -1300,6 +1370,22 @@ window.addEventListener('keyup', e => {
 });
 
 // Helpers
+function changeZoom(factor) {
+    // 默认以窗口中心缩放
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+    const worldPos = screenToWorld(centerX, centerY);
+
+    const oldScale = state.view.scale;
+    state.view.scale = Math.max(0.1, Math.min(5, oldScale * factor));
+    
+    // 补偿位移，实现以中心缩放
+    state.view.x = centerX - worldPos.x * state.view.scale;
+    state.view.y = centerY - worldPos.y * state.view.scale;
+    
+    render();
+}
+
 function screenToWorld(sx, sy) { return { x: (sx - state.view.x) / state.view.scale, y: (sy - state.view.y) / state.view.scale }; }
 function handleSelection(id, multi) {
     if (!multi) { if (!state.selection.has(id)) { state.selection.clear(); state.selection.add(id); } }
