@@ -62,6 +62,7 @@ const TRANSLATIONS = {
         settings_copy_mode: "复制代替下载",
         toast_copy_success: "图片已复制到剪贴板 ✨",
         toast_copy_fail: "浏览器限制，复制失败",
+        help_spotlight: "聚光灯",
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -125,6 +126,7 @@ const TRANSLATIONS = {
         settings_copy_mode: "Copy PNG to clipboard (No download)",
         toast_copy_success: "High-res image copied to clipboard ✨",
         toast_copy_fail: "Copy failed by browser limit",
+        help_spotlight: "Spotlight",
     }
 };
 
@@ -511,6 +513,7 @@ const els = {
     btnHelp: document.getElementById('btn-help'),
     helpModal: document.getElementById('help-modal'),
     uiLayer: document.getElementById('ui-layer'),
+    spotlight: document.getElementById('spotlight-layer'),
 };
 
 // --- Render System ---
@@ -839,6 +842,12 @@ els.container.addEventListener('mousedown', e => {
             render();
         }
     }
+});
+
+window.addEventListener('mousemove', (e) => {
+    // 实时更新全局 CSS 变量
+    document.documentElement.style.setProperty('--mouse-x', e.clientX + 'px');
+    document.documentElement.style.setProperty('--mouse-y', e.clientY + 'px');
 });
 
 els.container.addEventListener('mousemove', e => {
@@ -1276,11 +1285,18 @@ window.addEventListener('keydown', e => {
             case 'KeyJ': e.preventDefault(); e.shiftKey ? distributeSelection('v') : alignSelection('centerY'); break;
         }
     }
+
+    if (e.code === 'KeyQ') {
+        document.body.classList.add('spotlight-active');
+    }
 });
 
 window.addEventListener('keyup', e => {
     keys[e.code] = false;
     if (e.code === 'Space') document.body.classList.remove('mode-space');
+    if (e.code === 'KeyQ') {
+        document.body.classList.remove('spotlight-active');
+    }
 });
 
 // Helpers

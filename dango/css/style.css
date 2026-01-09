@@ -1171,3 +1171,34 @@ body.is-empty .empty-state {
 #canvas-container.drag-over * {
     pointer-events: none;
 }
+/* --- Spotlight Layer --- */
+#spotlight-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999; /* 必须在最顶层，覆盖 UI */
+    pointer-events: none; /* 关键：确保光圈不挡住鼠标点击事件 */
+    opacity: 0;
+    transition: opacity 0.3s ease; /* 开启/关闭时的淡入淡出 */
+    
+    /* 默认背景：使用变量控制坐标 */
+    background: radial-gradient(
+        circle 120px at var(--mouse-x, 50%) var(--mouse-y, 50%), 
+        rgba(0, 0, 0, 0) 0%, 
+        rgba(0, 0, 0, 0) 80%, 
+        rgba(0, 0, 0, 0.45) 100%
+    );
+}
+
+/* 激活状态 */
+body.spotlight-active #spotlight-layer {
+    opacity: 1;
+}
+
+/* 可以在激活时让背景网格淡出，进一步增强对比 */
+body.spotlight-active #canvas-container {
+    filter: saturate(0.8);
+    transition: filter 0.3s;
+}
