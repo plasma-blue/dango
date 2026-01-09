@@ -59,6 +59,9 @@ const TRANSLATIONS = {
         blog_link: "开发博客",
         buy_coffee: "请喝咖啡",
         alert_file_err: "文件格式错误，请上传 .dango 文件",
+        settings_copy_mode: "复制代替下载",
+        toast_copy_success: "图片已复制到剪贴板 ✨",
+        toast_copy_fail: "浏览器限制，复制失败",
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -119,6 +122,9 @@ const TRANSLATIONS = {
         blog_link: "Dev Blog",
         buy_coffee: "Buy me a coffee",
         alert_file_err: "Invalid format, please upload .dango file",
+        settings_copy_mode: "Copy PNG to clipboard (No download)",
+        toast_copy_success: "High-res image copied to clipboard ✨",
+        toast_copy_fail: "Copy failed by browser limit",
     }
 };
 
@@ -419,9 +425,10 @@ state.settings = {
     preciseLayout: localStorage.getItem('cc-precise-layout') === 'true',
     hideGrid: localStorage.getItem('cc-hide-grid') === 'true',
     altAsCtrl: localStorage.getItem('cc-alt-as-ctrl') === 'true',
-    handDrawn: localStorage.getItem('cc-hand-drawn') === 'true'
+    handDrawn: localStorage.getItem('cc-hand-drawn') === 'true',
+    copyMode: localStorage.getItem('cc-copy-mode') === 'true' 
 };
-
+const checkCopyMode = document.getElementById('check-copy-mode');
 // 齿轮按钮点击
 const btnSettings = document.getElementById('btn-settings');
 const modalSettings = document.getElementById('settings-modal');
@@ -437,6 +444,7 @@ function applySettings() {
     checkHandDrawn.checked = state.settings.handDrawn;
     // 根据状态给 body 添加或移除类
     document.body.classList.toggle('hide-grid', state.settings.hideGrid);
+    checkCopyMode.checked = state.settings.copyMode;
 }
 
 checkPrecise.onchange = (e) => {
@@ -453,6 +461,11 @@ checkHideGrid.onchange = (e) => {
 checkAltAsCtrl.onchange = (e) => {
     state.settings.altAsCtrl = e.target.checked;
     localStorage.setItem('cc-alt-as-ctrl', e.target.checked);
+};
+
+checkCopyMode.onchange = (e) => {
+    state.settings.copyMode = e.target.checked;
+    localStorage.setItem('cc-copy-mode', e.target.checked);
 };
 
 function isModifier(e) {
@@ -1597,40 +1610,50 @@ function getSvgString() {
 }
 
 // 核心功能：统一导出图片函数
-function downloadImage(format = 'png') {
+async function downloadImage() {
     const svgData = getSvgString();
     if (!svgData) return;
 
-    if (format === 'svg') {
-        downloadBlob(svgData.html, `dango_${getTimestamp()}.svg`, 'image/svg+xml');
-        return;
-    }
-
-    // PNG 导出逻辑
+    // 1. 创建 Canvas
     const canvas = document.createElement('canvas');
-    // 设置 2 倍缩放以保证高清 (Retina 效果)
-    const dpr = 2;
-    canvas.width = svgData.width * dpr;
-    canvas.height = svgData.height * dpr;
+    const scale = 3; // 强制 3x 高清
+    canvas.width = svgData.width * scale;
+    canvas.height = svgData.height * scale;
     const ctx = canvas.getContext('2d');
 
     const img = new Image();
-    // 使用 Blob 确保字符编码正确
     const svgBlob = new Blob([svgData.html], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
 
-    img.onload = () => {
+    img.onload = async () => {
+        // 绘制高清图
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.scale(dpr, dpr);
+        ctx.scale(scale, scale);
         ctx.drawImage(img, 0, 0);
         
-        canvas.toBlob((blob) => {
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `dango_${getTimestamp()}.png`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }, 'image/png');
+        if (state.settings.copyMode) {
+            // 模式 A: 复制到剪贴板
+            canvas.toBlob(async (blob) => {
+                try {
+                    const item = new ClipboardItem({ "image/png": blob });
+                    await navigator.clipboard.write([item]);
+                    showToast(TRANSLATIONS[currentLang].toast_copy_success);
+                } catch (err) {
+                    console.error(err);
+                    showToast(TRANSLATIONS[currentLang].toast_copy_fail);
+                }
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        } else {
+            // 模式 B: 下载文件
+            canvas.toBlob((blob) => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `dango_${getTimestamp()}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        }
     };
     img.src = url;
 }
@@ -1679,15 +1702,15 @@ document.getElementById('opt-json').onclick = (e) => {
 
 document.getElementById('opt-png').onclick = (e) => {
     e.stopPropagation();
-    downloadImage('png'); // 默认 PNG
+    downloadImage(); // 默认 PNG
     resetActionStack();
 };
 
-document.getElementById('opt-svg').onclick = (e) => {
-    e.stopPropagation();
-    downloadImage('svg'); // 选中的 SVG
-    resetActionStack();
-};
+// document.getElementById('opt-svg').onclick = (e) => {
+//     e.stopPropagation();
+//     downloadImage('svg'); // 选中的 SVG
+//     resetActionStack();
+// };
 
 document.getElementById('opt-link').onclick = (e) => {
     e.stopPropagation();
