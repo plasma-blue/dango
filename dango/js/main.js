@@ -63,9 +63,11 @@ const TRANSLATIONS = {
         toast_copy_success: "图片已复制到剪贴板 ✨",
         toast_copy_fail: "浏览器限制，复制失败",
         help_spotlight: "聚光灯",
-        embed_info_text: "预览模式，修改不保存。",
-        embed_info_tooltip: "了解预览模式",
+        embed_info_text: "嵌入模式，修改不保存。",
+        embed_info_tooltip: "了解嵌入模式",
         embed_open_tooltip: "在团子画板中打开并编辑",
+        settings_copy_as_embed: "导出链接为嵌入代码",
+        toast_copy_embed_success: "嵌入代码已复制 ✨",
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -133,6 +135,8 @@ const TRANSLATIONS = {
         embed_info_text: "Preview Mode: Changes are temporary. To save permanently, open in full version to export.",
         embed_info_tooltip: "About Preview Mode",
         embed_open_tooltip: "Open in Dango to Edit",
+        settings_copy_as_embed: "Export link as embed code (iframe)",
+        toast_copy_embed_success: "Embed code copied ✨",
     }
 };
 
@@ -441,7 +445,8 @@ state.settings = {
     hideGrid: localStorage.getItem('cc-hide-grid') === 'true',
     altAsCtrl: localStorage.getItem('cc-alt-as-ctrl') === 'true',
     handDrawn: localStorage.getItem('cc-hand-drawn') === 'true',
-    copyMode: localStorage.getItem('cc-copy-mode') === 'true' 
+    copyMode: localStorage.getItem('cc-copy-mode') === 'true',
+    copyAsEmbed: localStorage.getItem('cc-copy-as-embed') === 'true',
 };
 const checkCopyMode = document.getElementById('check-copy-mode');
 // 齿轮按钮点击
@@ -451,6 +456,7 @@ const checkPrecise = document.getElementById('check-precise');
 const checkHideGrid = document.getElementById('check-hide-grid');
 const checkAltAsCtrl = document.getElementById('check-alt-as-ctrl');
 const checkHandDrawn = document.getElementById('check-hand-drawn');
+const checkCopyAsEmbed = document.getElementById('check-copy-as-embed');
 
 function applySettings() {
     checkPrecise.checked = state.settings.preciseLayout;
@@ -460,6 +466,7 @@ function applySettings() {
     // 根据状态给 body 添加或移除类
     document.body.classList.toggle('hide-grid', state.settings.hideGrid);
     checkCopyMode.checked = state.settings.copyMode;
+    checkCopyAsEmbed.checked = state.settings.copyAsEmbed;
 }
 
 checkPrecise.onchange = (e) => {
@@ -481,6 +488,11 @@ checkAltAsCtrl.onchange = (e) => {
 checkCopyMode.onchange = (e) => {
     state.settings.copyMode = e.target.checked;
     localStorage.setItem('cc-copy-mode', e.target.checked);
+};
+
+checkCopyAsEmbed.onchange = (e) => {
+    state.settings.copyAsEmbed = e.target.checked;
+    localStorage.setItem('cc-copy-as-embed', e.target.checked);
 };
 
 function isModifier(e) {
@@ -2143,15 +2155,26 @@ window.addEventListener('click', () => {
 
 function createShareLink() {
     const packed = packData();
-    // 现在压缩的是极致精简的数组，JSON 字符串长度会缩减 60%-80%
     const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(packed));
     
-    const baseUrl = window.location.href.split('#')[0];
-    const url = baseUrl + '#' + compressed;
-
-    navigator.clipboard.writeText(url).then(() => {
-        showToast(currentLang === 'zh' ? "链接已复制到剪贴板 ✨" : "Link copied to clipboard ✨");
-    });
+    // 获取基础路径 (去除 hash)
+    const baseUrl = window.location.origin + window.location.pathname;
+    
+    if (state.settings.copyAsEmbed) {
+        // 生成嵌入代码模式
+        const embedUrl = `${baseUrl}?embed=true#${compressed}`;
+        const iframeCode = `<iframe src="${embedUrl}" style="width: 100%; height: 500px; border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" allow="clipboard-write"></iframe>`;
+        
+        navigator.clipboard.writeText(iframeCode).then(() => {
+            showToast(TRANSLATIONS[currentLang].toast_copy_embed_success);
+        });
+    } else {
+        // 普通链接模式
+        const url = baseUrl + '#' + compressed;
+        navigator.clipboard.writeText(url).then(() => {
+            showToast(currentLang === 'zh' ? "链接已复制到剪贴板 ✨" : "Link copied to clipboard ✨");
+        });
+    }
 }
 
 state.settings.handDrawn = localStorage.getItem('cc-hand-drawn') === 'true';
