@@ -526,15 +526,35 @@ function render() {
     els.world.style.transform = `translate(${state.view.x}px, ${state.view.y}px) scale(${state.view.scale})`;
 
     els.connectionsLayer.innerHTML = '';
+
+    const defsContent = `<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path></marker></defs>`;
+    els.connectionsLayer.innerHTML = defsContent;
+
     state.links.forEach(l => {
         const n1 = state.nodes.find(n => n.id === l.sourceId);
         const n2 = state.nodes.find(n => n.id === l.targetId);
-        if (n1 && n2) {
+        
+        // ✨ 确保节点尺寸已计算，否则无法计算交点
+        if (n1 && n2 && n1.w && n1.h && n2.w && n2.h) {
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            const c1 = getNodeCenter(n1); const c2 = getNodeCenter(n2);
-            line.setAttribute('x1', c1.x); line.setAttribute('y1', c1.y);
-            line.setAttribute('x2', c2.x); line.setAttribute('y2', c2.y);
+            
+            // ✨✨✨ 核心修改：计算边框交点 ✨✨✨
+            const startPoint = getEdgeIntersection(n2, n1); // 从 n2 指向 n1 的交点
+            const endPoint = getEdgeIntersection(n1, n2);   // 从 n1 指向 n2 的交点
+
+            line.setAttribute('x1', startPoint.x);
+            line.setAttribute('y1', startPoint.y);
+            line.setAttribute('x2', endPoint.x);
+            line.setAttribute('y2', endPoint.y);
             line.classList.add('link');
+
+            if (l.direction === 'target') {
+                line.setAttribute('marker-end', 'url(#arrowhead)');
+            } else if (l.direction === 'source') {
+                // 注意：当箭头反向时，线条的起点（marker-start）是 endPoint
+                line.setAttribute('marker-start', 'url(#arrowhead)');
+            }
+            
             els.connectionsLayer.appendChild(line);
         }
     });
@@ -715,6 +735,46 @@ function renderGroup(el, group) {
 }
 function getNodeCenter(n) { return { x: n.x + (n.w || 0) / 2, y: n.y + (n.h || 0) / 2 }; }
 
+function getEdgeIntersection(sourceNode, targetNode) {
+    const sx = sourceNode.x + sourceNode.w / 2;
+    const sy = sourceNode.y + sourceNode.h / 2;
+    const tx = targetNode.x + targetNode.w / 2;
+    const ty = targetNode.y + targetNode.h / 2;
+    
+    const dx = tx - sx;
+    const dy = ty - sy;
+    
+    const w = targetNode.w / 2;
+    const h = targetNode.h / 2;
+    
+    // 这是一个非常高效的近似算法，避免了复杂的三角函数
+    const slopeY = Math.abs(dy / dx);
+    const slopeX = Math.abs(dx / dy);
+    
+    let endX, endY;
+
+    if (slopeY < h / w) {
+        // 交点在左右两侧
+        if (dx > 0) {
+            endX = tx - w;
+            endY = ty - slopeY * w;
+        } else {
+            endX = tx + w;
+            endY = ty + slopeY * w;
+        }
+    } else {
+        // 交点在上下两侧
+        if (dy > 0) {
+            endY = ty - h;
+            endX = tx - slopeX * h;
+        } else {
+            endY = ty + h;
+            endX = tx + slopeX * h;
+        }
+    }
+    
+    return { x: endX, y: endY };
+}
 // --- 节日 Logo 逻辑 ---
 function updateSeasonalLogo() {
     const now = new Date();
@@ -1651,9 +1711,55 @@ function toggleLink() {
     const sel = Array.from(state.selection);
     const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter(n => n);
     if (nodes.length !== 2) return;
+    
+    // 为了逻辑稳定，我们不依赖选择顺序，而是固定一个为 source，一个为 target
     const [n1, n2] = nodes;
-    const existingIdx = state.links.findIndex(l => (l.sourceId === n1.id && l.targetId === n2.id) || (l.sourceId === n2.id && l.targetId === n1.id));
-    if (existingIdx !== -1) state.links.splice(existingIdx, 1); else state.links.push({ id: uid(), sourceId: n1.id, targetId: n2.id });
+
+    const existingLinkIndex = state.links.findIndex(l => 
+        (l.sourceId === n1.id && l.targetId === n2.id) || 
+        (l.sourceId === n2.id && l.targetId === n1.id)
+    );
+
+    if (existingLinkIndex !== -1) {
+        // --- 链接已存在，进入状态循环 ---
+        const link = state.links[existingLinkIndex];
+        
+        // 确保 sourceId 和 targetId 与我们当前获取的 n1, n2 一致，方便判断
+        const isReversed = link.sourceId === n2.id;
+
+        switch (link.direction) {
+            case 'none':
+                // 状态 1 -> 2: 无方向 -> 指向 n2
+                link.direction = isReversed ? 'source' : 'target';
+                break;
+            
+            case 'target':
+                // 状态 2 -> 3: 指向 target -> 指向 source (或反向)
+                link.direction = isReversed ? 'none' : 'source'; // 这里逻辑稍微复杂
+                if(isReversed) link.direction = 'none'; // 如果反了，直接回到 none
+                else link.direction = 'source';
+                break;
+            
+            case 'source':
+                // 状态 3 -> 4: 指向 source -> 删除
+                state.links.splice(existingLinkIndex, 1);
+                break;
+
+            default: // 兼容旧数据
+                 link.direction = 'target';
+                 break;
+        }
+
+    } else {
+        // --- 链接不存在，创建它 (状态 0 -> 1) ---
+        state.links.push({ 
+            id: uid(), 
+            sourceId: n1.id, 
+            targetId: n2.id,
+            direction: 'none' // 初始状态：无方向
+        });
+    }
+    
     render();
 }
 function deleteSelection() {
