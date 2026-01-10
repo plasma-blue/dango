@@ -617,7 +617,9 @@ button.btn-danger:hover {
 }
 
 .node.selected {
-    border: 2px solid var(--select-color) !important;
+    box-shadow: 0 0 0 2px var(--select-color), /* ✨ 用这一行代替 border */
+                0 0 0 4px rgba(99, 102, 241, 0.2), 
+                var(--node-shadow) !important;
     box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2), var(--node-shadow) !important;
     z-index: 50;
 }
@@ -1260,4 +1262,11 @@ body.spotlight-active #canvas-container {
     /* margin-right: 8px; <-- 移除 */
     /* cursor: pointer;   <-- 移除 */
     pointer-events: none; /* ✨ 关键：让点击穿透它，到达父级的 wrapper */
+}
+
+line.link {
+    stroke: var(--link-color);
+    stroke-width: 1.5; /* ✨ 改为 1.5px，更纤细 */
+    opacity: 0.35;      /* ✨ 降低默认透明度，让它更“哑” */
+    transition: all 0.2s ease-in-out; /* ✨ 添加过渡效果 */
 }
