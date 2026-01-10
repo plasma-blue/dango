@@ -1210,6 +1210,7 @@ body.spotlight-active #canvas-container {
     /* 我们需要确保默认节点是居中的，但可以被覆盖 */
     text-align: center;
     white-space: nowrap;
+    line-height: 1.2;
 }
 
 /* 当节点内有 <br> 标签时，它会自动撑开并换行 */
@@ -1222,7 +1223,8 @@ body.spotlight-active #canvas-container {
 .node .todo-item {
     display: inline-flex;
     align-items: center;
-    /* cursor: pointer; <-- ✨ 从这里移除 */
+    vertical-align: top; /* ✨ 改为 top 或 middle，防止基线对齐导致的撑开 */
+    line-height: 1;      /* ✨ 确保它内部不产生额外的行间距 */
     transition: all 0.2s;
 }
 
@@ -1237,13 +1239,18 @@ body.spotlight-active #canvas-container {
     opacity: 0.6;
 }
 .node .todo-checkbox-wrapper {
-    display: inline-flex;  /* 使用 flex 来居中内部的 checkbox */
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;      /* 手型光标在这里！ */
-    margin-right: 2px;    /* 间距也移到这里 */
-    padding: 2px;         /* 稍微增加一点点击区域，体验更好 */
-    border-radius: 4px;   /* 添加圆角，悬浮时更友好 */
+    cursor: pointer;
+    margin-left: -8px;
+    margin-right: 6px;
+    
+    /* ✨ 修改这里 ✨ */
+    padding: 0 2px;     /* 垂直 padding 改为 0，只保留水平 padding */
+    height: 16px;       /* 给一个固定的微小高度 */
+    
+    border-radius: 4px;
     transition: background-color 0.2s;
 }
 
@@ -1269,4 +1276,8 @@ line.link {
     stroke-width: 1.5; /* ✨ 改为 1.5px，更纤细 */
     opacity: 0.35;      /* ✨ 降低默认透明度，让它更“哑” */
     transition: all 0.2s ease-in-out; /* ✨ 添加过渡效果 */
+}
+
+.node:has(.todo-item) {
+    padding-left: 12px; /* 从默认的 20px 缩小到 12px */
 }
