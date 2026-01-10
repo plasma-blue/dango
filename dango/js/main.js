@@ -616,6 +616,7 @@ function renderNode(el, node) {
     // 如果当前节点正在编辑，跳过内容更新，只更新状态
     if (el.classList.contains('editing') || el === document.activeElement) {
         const isSelected = state.selection.has(node.id);
+        const isEditing = '';
         const classes = ['node', node.color || 'c-white', isEditing ? 'editing' : '', isSelected ? 'selected' : ''].filter(Boolean);
         el.className = classes.join(' ');
         return;
@@ -1442,14 +1443,20 @@ function handleNodeEdit(nodeEl) {
             nodeEl.contentEditable = false;
             nodeEl.classList.remove('editing');
             
-            // ✨ 关键：从 innerText 获取最新的原始文本
+            // ✨ 核心修复：手动清除浏览器中的文本高亮选区
+            const sel = window.getSelection();
+            if (sel) {
+                sel.removeAllRanges();
+            }
+
+            // 从 innerText 获取最新的原始文本
             const newText = nodeEl.innerText;
             
             // 只有当文字真的变了，才更新数据并渲染
             if (node.text !== newText) {
                 node.text = newText;
             }
-            render(); // 无论是否变化都重新渲染，以恢复 Markdown 样式
+            render(); 
         };
 
         nodeEl.onblur = () => {
