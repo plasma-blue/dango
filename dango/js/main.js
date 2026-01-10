@@ -63,6 +63,9 @@ const TRANSLATIONS = {
         toast_copy_success: "图片已复制到剪贴板 ✨",
         toast_copy_fail: "浏览器限制，复制失败",
         help_spotlight: "聚光灯",
+        embed_info_text: "预览模式，修改不保存。",
+        embed_info_tooltip: "了解预览模式",
+        embed_open_tooltip: "在团子画板中打开并编辑",
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -127,6 +130,9 @@ const TRANSLATIONS = {
         toast_copy_success: "High-res image copied to clipboard ✨",
         toast_copy_fail: "Copy failed by browser limit",
         help_spotlight: "Spotlight",
+        embed_info_text: "Preview Mode: Changes are temporary. To save permanently, open in full version to export.",
+        embed_info_tooltip: "About Preview Mode",
+        embed_open_tooltip: "Open in Dango to Edit",
     }
 };
 
@@ -2345,7 +2351,25 @@ function updateOpenFullLink() {
     btn.href = baseUrl + '#' + compressed;
 }
 
+if (isEmbed) {
+    const btnInfo = document.getElementById('btn-info-embed');
+    const infoCard = document.getElementById('embed-info-card');
 
+    btnInfo.onclick = (e) => {
+        e.stopPropagation();
+        const isVisible = infoCard.style.opacity === "1";
+        infoCard.style.opacity = isVisible ? "0" : "1";
+        infoCard.style.pointerEvents = isVisible ? "none" : "auto";
+        infoCard.style.transform = isVisible ? "translateY(10px) scale(0.95)" : "translateY(0) scale(1)";
+    };
+    
+    // 点击其他地方关闭卡片
+    window.addEventListener('click', () => {
+        infoCard.style.opacity = "0";
+        infoCard.style.pointerEvents = "none";
+        infoCard.style.transform = "translateY(10px) scale(0.95)";
+    });
+}
 // 初始应用
 applyHandDrawnStyle();
 applySettings();
