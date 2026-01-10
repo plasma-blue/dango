@@ -68,6 +68,7 @@ const TRANSLATIONS = {
         embed_open_tooltip: "在团子画板中打开并编辑",
         settings_copy_as_embed: "导出链接为嵌入代码",
         toast_copy_embed_success: "嵌入代码已复制 ✨",
+        help_smart_align: "智能自动对齐",
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -137,6 +138,7 @@ const TRANSLATIONS = {
         embed_open_tooltip: "Open in Dango to Edit",
         settings_copy_as_embed: "Export link as embed code (iframe)",
         toast_copy_embed_success: "Embed code copied ✨",
+        help_smart_align: "Smart Auto-Align",
     }
 };
 
@@ -525,6 +527,123 @@ window.addEventListener('click', (e) => {
         btnSettings.classList.remove('active');
     }
 });
+
+// --- 节点多路动画系统 ---
+let nodeAnimationId = null;
+
+function animateNodesTo(targets, duration = 300) {
+    if (nodeAnimationId) cancelAnimationFrame(nodeAnimationId);
+    
+    const startTime = performance.now();
+    const startPositions = new Map();
+    
+    targets.forEach(({ id }) => {
+        const node = state.nodes.find(n => n.id === id);
+        if (node) {
+            startPositions.set(id, { x: node.x, y: node.y });
+        }
+    });
+
+    function step(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const ease = 1 - Math.pow(1 - progress, 3); // OutCubic 效果更轻盈
+
+        targets.forEach(({ id, x, y }) => {
+            const node = state.nodes.find(n => n.id === id);
+            const start = startPositions.get(id);
+            if (node && start) {
+                node.x = start.x + (x - start.x) * ease;
+                node.y = start.y + (y - start.y) * ease;
+            }
+        });
+
+        render();
+
+        if (progress < 1) {
+            nodeAnimationId = requestAnimationFrame(step);
+        } else {
+            nodeAnimationId = null;
+            saveData();
+        }
+    }
+    nodeAnimationId = requestAnimationFrame(step);
+}
+
+function smartAlignSelection() {
+    const selectedNodes = state.nodes.filter(n => state.selection.has(n.id));
+    if (selectedNodes.length < 2) return;
+
+    pushHistory();
+
+    const rowThreshold = 60; // 这里的高度差认为是同一行
+    const standardGapX = 40; // 节点间的标准间距
+    const standardGapY = 40; 
+
+    // 1. 识别行：按 Y 坐标排序并聚类
+    const sortedByY = [...selectedNodes].sort((a, b) => a.y - b.y);
+    const rows = [];
+    if (sortedByY.length > 0) {
+        let currentRow = [sortedByY[0]];
+        for (let i = 1; i < sortedByY.length; i++) {
+            if (sortedByY[i].y - sortedByY[i - 1].y < rowThreshold) {
+                currentRow.push(sortedByY[i]);
+            } else {
+                rows.push(currentRow);
+                currentRow = [sortedByY[i]];
+            }
+        }
+        rows.push(currentRow);
+    }
+
+    // 2. 计算每一行的目标位置
+    const targets = [];
+    let currentY = rows[0][0].y; // 以后续计算的平均值修正
+
+    // 计算整体重心，用于最后偏移校正
+    const originalCenter = {
+        x: selectedNodes.reduce((sum, n) => sum + n.x + n.w/2, 0) / selectedNodes.length,
+        y: selectedNodes.reduce((sum, n) => sum + n.y + n.h/2, 0) / selectedNodes.length
+    };
+
+    rows.forEach((row) => {
+        // 行内居中对齐：计算该行所有节点的平均 Y
+        const avgY = row.reduce((sum, n) => sum + n.y, 0) / row.length;
+        
+        // 行内按 X 排序
+        const sortedInRow = row.sort((a, b) => a.x - b.x);
+        
+        // 计算行内总宽度，用于分配位置
+        let currentX = sortedInRow[0].x; 
+        
+        sortedInRow.forEach((node, index) => {
+            targets.push({
+                id: node.id,
+                x: currentX,
+                y: avgY
+            });
+            // 累加：当前节点宽度 + 间距
+            currentX += (node.w || 80) + standardGapX;
+        });
+    });
+
+    // 3. 整体修正：保持重心不变，避免对齐后“飞走”
+    const targetCenter = {
+        x: targets.reduce((sum, n) => sum + n.x + (selectedNodes.find(sn=>sn.id===n.id).w||80)/2, 0) / targets.length,
+        y: targets.reduce((sum, n) => sum + n.y + (selectedNodes.find(sn=>sn.id===n.id).h||40)/2, 0) / targets.length
+    };
+    
+    const offsetX = originalCenter.x - targetCenter.x;
+    const offsetY = originalCenter.y - targetCenter.y;
+
+    targets.forEach(t => {
+        t.x += offsetX;
+        t.y += offsetY;
+    });
+
+    // 4. 执行动画
+    animateNodesTo(targets);
+}
 
 // --- DOM Refs ---
 const els = {
@@ -1633,6 +1752,11 @@ window.addEventListener('keydown', e => {
             case 'KeyS': e.preventDefault(); alignSelection('bottom'); break;
             case 'KeyH': e.preventDefault(); e.shiftKey ? distributeSelection('h') : alignSelection('centerX'); break;
             case 'KeyJ': e.preventDefault(); e.shiftKey ? distributeSelection('v') : alignSelection('centerY'); break;
+        }
+        if (e.key === '.') { // 对应 Alt + .
+            e.preventDefault();
+            smartAlignSelection();
+            return;
         }
     }
 
