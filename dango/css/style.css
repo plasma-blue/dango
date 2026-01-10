@@ -1202,3 +1202,62 @@ body.spotlight-active #canvas-container {
     filter: saturate(0.8);
     transition: filter 0.3s;
 }
+
+.node {
+    /* 之前的 text-align: center; white-space: nowrap; 会覆盖这里 */
+    /* 我们需要确保默认节点是居中的，但可以被覆盖 */
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* 当节点内有 <br> 标签时，它会自动撑开并换行 */
+/* 为了让多行文本左对齐，我们可以在有 todo 或 <br> 时改变对齐方式 */
+.node:has(.todo-item, br) {
+    text-align: left;
+}
+
+/* 2. Todo-list 容器 (现在是 span) */
+.node .todo-item {
+    display: inline-flex;
+    align-items: center;
+    /* cursor: pointer; <-- ✨ 从这里移除 */
+    transition: all 0.2s;
+}
+
+/* 4. Todo-list 的文本标签 (无变化) */
+.node .todo-item label {
+    transition: all 0.2s;
+}
+
+/* 5. 已完成状态的样式 (无变化) */
+.node .todo-item.checked label {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+.node .todo-checkbox-wrapper {
+    display: inline-flex;  /* 使用 flex 来居中内部的 checkbox */
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;      /* 手型光标在这里！ */
+    margin-right: 2px;    /* 间距也移到这里 */
+    padding: 2px;         /* 稍微增加一点点击区域，体验更好 */
+    border-radius: 4px;   /* 添加圆角，悬浮时更友好 */
+    transition: background-color 0.2s;
+}
+
+/* 鼠标悬浮时给一点反馈 */
+.node .todo-checkbox-wrapper:hover {
+    background-color: var(--ui-hover-bg);
+}
+
+
+/* 3. Todo-list 的 Checkbox (现在只负责显示) */
+.node .todo-item input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    accent-color: var(--select-color);
+    /* margin-right: 8px; <-- 移除 */
+    /* cursor: pointer;   <-- 移除 */
+    pointer-events: none; /* ✨ 关键：让点击穿透它，到达父级的 wrapper */
+}

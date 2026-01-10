@@ -557,26 +557,70 @@ function syncDomElements(dataArray, parent, className, renderFn) {
     existing.forEach((el, id) => { if (!activeIds.has(id)) el.remove(); });
 }
 
+function parseMarkdown(text) {
+    let escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const lines = escapedText.split('\n');
+    const htmlLines = lines.map(line => {
+        let processedLine = line;
+
+        processedLine = processedLine.replace(
+            /^\[([ xX])\] (.*)/,
+            (match, checked, content) => {
+                const isChecked = checked.toLowerCase() === 'x';
+                // ✨ 关键改动：添加一个 .todo-checkbox-wrapper 作为点击目标
+                return `<span class="todo-item ${isChecked ? 'checked' : ''}" data-checked="${isChecked}">
+                          <span class="todo-checkbox-wrapper">
+                            <input type="checkbox" ${isChecked ? 'checked' : ''} disabled>
+                          </span>
+                          <label>${content}</label>
+                        </span>`;
+            }
+        );
+
+        if (!processedLine.includes('class="todo-item"')) {
+            processedLine = processedLine.replace(/\*\*(.*?)\*\*|__(.*?)__/g, '<strong>$1$2</strong>');
+            processedLine = processedLine.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)|_(.*?)_/g, '<em>$1$2</em>');
+        }
+        
+        return processedLine;
+    });
+
+    return htmlLines.join('<br>');
+}
+
 function renderNode(el, node) {
-    el.setAttribute('role', 'button'); // 让节点可被 Vimium C 选中
+    el.setAttribute('role', 'button');
     el.style.transform = `translate(${node.x}px, ${node.y}px)`;
     
-    // ✨ 修复点 1：如果当前节点正在编辑，跳过内容更新逻辑，只更新位置和状态
-    // el === document.activeElement 是为了确保万无一失
+    // 如果当前节点正在编辑，跳过内容更新，只更新状态
     if (el.classList.contains('editing') || el === document.activeElement) {
-        // 仅同步选中状态和颜色 class，不要动 innerHTML 或 innerText
         const isSelected = state.selection.has(node.id);
-        el.className = `node ${node.color || 'c-white'} ${isSelected ? 'selected' : ''} editing`;
-        return; 
+        const classes = ['node', node.color || 'c-white', isEditing ? 'editing' : '', isSelected ? 'selected' : ''].filter(Boolean);
+        el.className = classes.join(' ');
+        return;
     }
 
-    // --- 链接识别逻辑 ---
-    if (isUrl(node.text)) {
+    // --- 新的渲染逻辑 ---
+
+    const isLink = isUrl(node.text);
+    const hasMarkdown = /^\s*- \[.\]|\*\*|__|(?<!\*)\*(?!\*)/.test(node.text);
+
+    // 根据内容决定是否左对齐和允许多行
+    // if (node.text.includes('\n') || hasMarkdown) {
+    //     el.classList.add('has-multiline');
+    // } else {
+    //     el.classList.remove('has-multiline');
+    // }
+
+    if (isLink) {
+        // --- 链接节点的渲染逻辑 (保持不变) ---
         el.classList.add('is-link');
-        // ... (保持你原有的链接处理逻辑)
+        el.classList.remove('has-multiline'); // 链接强制单行
+
         let textEl = el.querySelector('.node-text');
         if (!textEl) {
-            el.innerHTML = ''; 
+            el.innerHTML = '';
             textEl = document.createElement('div');
             textEl.className = 'node-text';
             el.appendChild(textEl);
@@ -587,8 +631,7 @@ function renderNode(el, node) {
         if (!btnEl) {
             btnEl = document.createElement('div');
             btnEl.className = 'link-btn';
-            btnEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>'; // 使用 SVG 图标更精致
-
+            btnEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>';
             btnEl.onmousedown = (e) => e.stopPropagation();
             btnEl.onclick = (e) => {
                 e.stopPropagation();
@@ -599,26 +642,70 @@ function renderNode(el, node) {
             el.appendChild(btnEl);
         }
     } else {
-        // --- 普通文本逻辑 ---
+        // --- 普通文本/Markdown 节点的渲染逻辑 ---
         el.classList.remove('is-link');
-        if (el.querySelector('.node-text')) el.innerHTML = '';
-        // ✨ 修复点 2：这里原本的 !el.isContentEditable 已经起了一定作用，
-        // 但上面的“提前退出”更彻底
-        if (el.innerText !== node.text) el.innerText = node.text;
+        
+        // ✨ 关键改动：使用 innerHTML 和 parseMarkdown
+        const newHtml = parseMarkdown(node.text);
+        if (el.innerHTML !== newHtml) {
+            el.innerHTML = newHtml;
+        }
     }
 
-    // --- 通用样式处理 ---
+    // --- 通用样式处理 (保持不变) ---
     const isSelected = state.selection.has(node.id);
     const classes = ['node'];
-    if (isUrl(node.text)) classes.push('is-link');
+    if (isLink) classes.push('is-link');
     classes.push(node.color || 'c-white');
     if (isSelected) classes.push('selected');
+    // if (el.classList.contains('has-multiline')) classes.push('has-multiline');
     el.className = classes.join(' ');
 
     if (!node.w || !node.h || el.offsetWidth !== node.w) {
         node.w = el.offsetWidth; node.h = el.offsetHeight;
     }
 }
+
+els.nodesLayer.addEventListener('click', e => {
+    // ✨ 核心修改：寻找 .todo-checkbox-wrapper
+    const checkboxWrapper = e.target.closest('.todo-checkbox-wrapper');
+    if (!checkboxWrapper) {
+        return; // 如果点击的不是 wrapper 或其内部，直接退出
+    }
+
+    e.stopPropagation(); // 阻止冒泡，这仍然非常重要
+
+    const nodeEl = checkboxWrapper.closest('.node');
+    if (!nodeEl) return;
+
+    const nodeId = nodeEl.dataset.id;
+    const node = state.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    // ✨ 核心修改：通过 wrapper 找到它的父级 todo-item 来确定索引
+    const todoItem = checkboxWrapper.closest('.todo-item');
+    const allTodosInNode = Array.from(nodeEl.querySelectorAll('.todo-item'));
+    const clickedIndex = allTodosInNode.indexOf(todoItem);
+
+    if (clickedIndex === -1) return;
+
+    pushHistory();
+
+    const lines = node.text.split('\n');
+    let todoCounter = -1;
+    const newLines = lines.map(line => {
+        if (/^\[([ xX])\]/.test(line.trim())) {
+            todoCounter++;
+            if (todoCounter === clickedIndex) {
+                return line.includes('[ ]') ? line.replace('[ ]', '[x]') : line.replace(/\[[xX]\]/, '[ ]');
+            }
+        }
+        return line;
+    });
+    
+    node.text = newLines.join('\n');
+    render();
+});
 
 
 function renderGroup(el, group) {
@@ -888,6 +975,9 @@ let isPrepareToClone = false;
 let targetAlreadySelectedAtStart = false; // 记录点击前的选中状态
 
 els.container.addEventListener('mousedown', e => {
+    if (e.target.closest('.todo-checkbox-wrapper')) {
+        return;
+    }
     if (e.target.isContentEditable) return;
     if (viewAnimationId) {
         cancelAnimationFrame(viewAnimationId);
@@ -1268,22 +1358,20 @@ function handleNodeEdit(nodeEl) {
     if (!nodeEl) return;
     const node = state.nodes.find(n => n.id === nodeEl.dataset.id);
     if (node) {
-        // 如果正在拖拽或移动，不应该进入编辑模式（防止误触）
         if (mode === 'move' || hasMovedDuringDrag) return;
 
         pushHistory();
 
-        // 链接特殊处理
-        if (nodeEl.classList.contains('is-link')) {
-            nodeEl.innerText = node.text;
-            nodeEl.classList.remove('is-link');
-        }
-
+        // ✨ 关键改动：无论是链接还是 Markdown，都用原始文本替换渲染后的 HTML
+        nodeEl.innerText = node.text;
+        
+        // 移除所有特殊样式类，回到最基础的编辑状态
+        nodeEl.classList.remove('is-link', 'has-multiline');
+        
         nodeEl.contentEditable = true;
         nodeEl.classList.add('editing');
         nodeEl.focus();
 
-        // 全选文本
         const range = document.createRange();
         range.selectNodeContents(nodeEl);
         const sel = window.getSelection();
@@ -1293,27 +1381,27 @@ function handleNodeEdit(nodeEl) {
         const finishEdit = () => {
             nodeEl.contentEditable = false;
             nodeEl.classList.remove('editing');
-            node.text = nodeEl.innerText; // 获取新文本
-            const currentSel = window.getSelection();
-            if (currentSel) currentSel.removeAllRanges();
+            
+            // ✨ 关键：从 innerText 获取最新的原始文本
+            const newText = nodeEl.innerText;
+            
             // 只有当文字真的变了，才更新数据并渲染
-            if (node.text !== nodeEl.innerText) {
-                node.text = nodeEl.innerText;
-                // 注意：这里调用 render() 是安全的，因为此时 editing class 已移除
-                render(); 
+            if (node.text !== newText) {
+                node.text = newText;
             }
+            render(); // 无论是否变化都重新渲染，以恢复 Markdown 样式
         };
 
-        // 仅绑定一次 blur，防止多次触发
         nodeEl.onblur = () => {
-            nodeEl.onblur = null; // 清理事件
+            nodeEl.onblur = null;
             finishEdit();
         };
         
         nodeEl.onkeydown = (ev) => {
-            if (ev.key === 'Enter' && !ev.shiftKey) { // 允许 Shift+Enter 换行，Enter 完成
+            // ✨ 允许在编辑时使用 Shift+Enter 换行
+            if (ev.key === 'Enter' && !ev.shiftKey) {
                 ev.preventDefault();
-                nodeEl.blur();
+                nodeEl.blur(); // 触发 onblur 来结束编辑
             }
             ev.stopPropagation();
         };
