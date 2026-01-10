@@ -1281,3 +1281,33 @@ line.link {
 .node:has(.todo-item) {
     padding-left: 12px; /* 从默认的 20px 缩小到 12px */
 }
+
+body[data-mode="embed"] #ui-layer {
+    display: none !important;
+}
+
+#btn-open-full {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    z-index: 1000;
+    width: 32px;
+    height: 32px;
+    background: var(--ui-bg);
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    display: none; /* 默认隐藏 */
+    align-items: center;
+    justify-content: center;
+    color: var(--ui-text-dim);
+    transition: all 0.2s;
+    text-decoration: none;
+}
+body[data-mode="embed"] #btn-open-full {
+    display: flex; /* 仅在嵌入模式显示 */
+}
+#btn-open-full:hover {
+    color: var(--select-color);
+    background: var(--c-white-bg);
+    transform: scale(1.1);
+}

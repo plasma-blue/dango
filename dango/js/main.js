@@ -143,6 +143,12 @@ let currentLang = localStorage.getItem(LS_LANG_KEY) ||
 const aboutOverlay = document.getElementById('about-overlay');
 const btnTriggerAbout = document.getElementById('trigger-about');
 const btnCloseAbout = document.getElementById('btn-close-about');
+const urlParams = new URLSearchParams(window.location.search);
+const isEmbed = urlParams.has('embed'); 
+
+if (isEmbed) {
+    document.body.setAttribute('data-mode', 'embed');
+}
 
 // 打开关于
 btnTriggerAbout.onclick = (e) => {
@@ -396,6 +402,7 @@ function loadData() {
     }
 }
 function saveData() {
+    if (isEmbed) return; 
     localStorage.setItem(LS_KEY, JSON.stringify({
         nodes: state.nodes, groups: state.groups, links: state.links
     }));
@@ -561,6 +568,7 @@ function render() {
 
     syncDomElements(state.groups, els.groupsLayer, 'group', renderGroup);
     syncDomElements(state.nodes, els.nodesLayer, 'node', renderNode);
+    if (isEmbed) updateOpenFullLink();
     saveData();
 }
 
@@ -2204,8 +2212,11 @@ function loadFromUrl() {
         applySettings();
         applyHandDrawnStyle();
 
-        showToast(TRANSLATIONS[currentLang].toast_imported, oldSnapshot);
-        window.history.replaceState(null, null, window.location.pathname);
+        if (!isEmbed) {
+            showToast(TRANSLATIONS[currentLang].toast_imported, oldSnapshot);
+            window.history.replaceState(null, null, window.location.pathname);
+        }
+        
         return true;
     } catch (e) {
         console.error("Import failed:", e);
@@ -2320,6 +2331,21 @@ function animateView(targetX, targetY, targetScale, duration = 400) {
 
     viewAnimationId = requestAnimationFrame(step);
 }
+
+function updateOpenFullLink() {
+    if (!isEmbed) return;
+    const btn = document.getElementById('btn-open-full');
+    
+    // 每次渲染或数据变化时，更新链接
+    const packed = packData();
+    const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(packed));
+    
+    // 指向不带 ?embed=true 的主地址
+    const baseUrl = window.location.origin + window.location.pathname;
+    btn.href = baseUrl + '#' + compressed;
+}
+
+
 // 初始应用
 applyHandDrawnStyle();
 applySettings();
