@@ -610,6 +610,7 @@ button.btn-danger:hover {
     white-space: nowrap;
     z-index: 10;
     transition: box-shadow 0.2s, transform 0.1s;
+    will-change: transform;
 }
 
 .node:hover {
@@ -635,6 +636,7 @@ button.btn-danger:hover {
     transition: none !important; 
     /* 保持字体稳定 */
     font-variant-ligatures: none;
+    text-align: center !important; 
 }
 
 .node.c-white {
