@@ -886,39 +886,49 @@ function getEdgeIntersection(sourceNode, targetNode) {
     const sy = sourceNode.y + sourceNode.h / 2;
     const tx = targetNode.x + targetNode.w / 2;
     const ty = targetNode.y + targetNode.h / 2;
-    
+
     const dx = tx - sx;
     const dy = ty - sy;
-    
+
     const w = targetNode.w / 2;
     const h = targetNode.h / 2;
-    
-    // 这是一个非常高效的近似算法，避免了复杂的三角函数
-    const slopeY = Math.abs(dy / dx);
-    const slopeX = Math.abs(dx / dy);
-    
+
+    // 避免除以零的情况
+    if (dx === 0 && dy === 0) {
+        return { x: tx, y: ty };
+    }
+
     let endX, endY;
 
-    if (slopeY < h / w) {
+    // 计算斜率的绝对值
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    // 判断交点在哪个边上
+    if (absDy * w < absDx * h) {
         // 交点在左右两侧
         if (dx > 0) {
+            // 从左侧进入
             endX = tx - w;
-            endY = ty - slopeY * w;
+            endY = ty - (dy / dx) * w;
         } else {
+            // 从右侧进入
             endX = tx + w;
-            endY = ty + slopeY * w;
+            endY = ty + (dy / dx) * w;
         }
     } else {
         // 交点在上下两侧
         if (dy > 0) {
+            // 从上方进入
             endY = ty - h;
-            endX = tx - slopeX * h;
+            endX = tx - (dx / dy) * h;
         } else {
+            // 从下方进入
             endY = ty + h;
-            endX = tx + slopeX * h;
+            endX = tx + (dx / dy) * h;
         }
     }
-    
+
     return { x: endX, y: endY };
 }
 // --- 节日 Logo 逻辑 ---
