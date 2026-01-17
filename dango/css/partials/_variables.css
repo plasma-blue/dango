@@ -1,0 +1,113 @@
+/* css/partials/_variables.css */
+/* 这个文件只存放颜色、字体等设计变量。 */
+
+:root {
+    /* 🌞 Light Mode */
+    --bg-color: #f8f9fa;
+    --dot-color: #cbd5e1;
+
+    --ui-bg: rgba(255, 255, 255, 0.85);
+    --ui-border: rgba(255, 255, 255, 0.8);
+    --ui-shadow: 0 8px 32px rgba(31, 38, 135, 0.08);
+    --ui-text: #334155;
+    --ui-text-dim: #64748b;
+    --ui-hover-bg: rgba(0, 0, 0, 0.04);
+    --ui-selection-bg: rgba(37, 130, 146, 0.1);
+
+    --logo-gradient: linear-gradient(135deg, #258292 0%, #1a6b78 100%);
+    --logo-text: #ffffff;
+
+    --node-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    --node-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+    --select-color: #258292;
+    --group-bg: rgba(37, 130, 146, 0.05);
+    --group-border: #258292;
+    --link-color: #94a3b8;
+
+    /* 节点配色 */
+    --c-white-bg: #ffffff;
+    --c-white-border: #e2e8f0;
+    --c-white-text: #1e293b;
+
+    --c-red-bg: #fee2e2;
+    --c-red-border: #fecaca;
+    --c-red-text: #991b1b;
+    --c-yellow-bg: #fef3c7;
+    --c-yellow-border: #fde68a;
+    --c-yellow-text: #92400e;
+    --c-green-bg: #d1fae5;
+    --c-green-border: #a7f3d0;
+    --c-green-text: #065f46;
+    --c-blue-bg: #e0e7ff;
+    --c-blue-border: #c7d2fe;
+    --c-blue-text: #3730a3;
+    --c-orange-bg: #ffedd5;
+    --c-orange-border: #fed7aa;
+    --c-orange-text: #9a3412;
+    --c-purple-bg: #f3e8ff;
+    --c-purple-border: #d8b4fe;
+    --c-purple-text: #6b21a8;
+    --c-pink-bg: #fce7f3;
+    --c-pink-border: #fbcfe8;
+    --c-pink-text: #9d174d;
+    --c-cyan-bg: #cffafe;
+    --c-cyan-border: #a5f3fc;
+    --c-cyan-text: #155e75;
+
+    --c-danger: #ef4444;
+    --c-danger-text: #ffffff;
+    --text-selection-bg: rgba(37, 130, 146, 0.3);
+}
+
+/* 🌙 Dark Mode */
+[data-theme="dark"] {
+    --bg-color: #111827;
+    --dot-color: #374151;
+
+    --ui-bg: rgba(31, 41, 55, 0.85);
+    --ui-border: rgba(255, 255, 255, 0.05);
+    --ui-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    --ui-text: #f1f5f9;
+    --ui-text-dim: #94a3b8;
+    --ui-hover-bg: rgba(255, 255, 255, 0.1);
+
+    --logo-gradient: linear-gradient(135deg, #38b2ac 0%, #258292 100%);
+
+    --node-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    --node-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+
+    --select-color: #38b2ac;
+    --group-bg: rgba(56, 178, 172, 0.1);
+    --group-border: #258292;
+    --link-color: #64748b;
+
+    --c-white-bg: #1f2937;
+    --c-white-border: #374151;
+    --c-white-text: #f3f4f6;
+    --c-red-bg: #450a0a;
+    --c-red-border: #7f1d1d;
+    --c-red-text: #fecaca;
+    --c-yellow-bg: #451a03;
+    --c-yellow-border: #78350f;
+    --c-yellow-text: #fde68a;
+    --c-green-bg: #064e3b;
+    --c-green-border: #065f46;
+    --c-green-text: #a7f3d0;
+    --c-blue-bg: #1e1b4b;
+    --c-blue-border: #312e81;
+    --c-blue-text: #c7d2fe;
+    --c-orange-bg: #431407;
+    --c-orange-border: #7c2d12;
+    --c-orange-text: #fdba74;
+    --c-purple-bg: #3b0764;
+    --c-purple-border: #6b21a8;
+    --c-purple-text: #d8b4fe;
+    --c-pink-bg: #500724;
+    --c-pink-border: #831843;
+    --c-pink-text: #fbcfe8;
+    --c-cyan-bg: #083344;
+    --c-cyan-border: #164e63;
+    --c-cyan-text: #67e8f9;
+    --text-selection-bg: rgba(56, 178, 172, 0.4);
+}

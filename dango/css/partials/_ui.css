@@ -1,0 +1,282 @@
+/* css/partials/_ui.css */
+/* 所有与左上角 UI 面板相关的样式。 */
+
+/* --- UI Panel --- */
+#ui-layer {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    z-index: 1000;
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: var(--ui-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--ui-border);
+    box-shadow: var(--ui-shadow);
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    color: var(--ui-text);
+    transition:
+        width 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.15s,
+        height 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0.15s,
+        border-radius 0.3s;
+}
+
+#ui-layer:hover,
+#ui-layer:focus-within {
+    width: 340px;
+    height: auto;
+    border-radius: 18px;
+    transition:
+        width 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0s,
+        height 0.3s cubic-bezier(0.16, 1, 0.3, 1) 0s;
+}
+
+#ui-layer.mobile-active {
+    width: 340px;
+    height: auto;
+    border-radius: 18px;
+    transition: none !important;
+}
+
+#ui-top-bar {
+    height: 48px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    box-sizing: border-box;
+}
+
+#ui-logo-box {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+#ui-header-content {
+    display: flex;
+    align-items: center;
+    flex-grow: 1;
+    overflow: visible;
+    opacity: 0;
+    pointer-events: none;
+    margin-left: 12px;
+    transition: opacity 0.15s ease-out 0s;
+}
+
+#ui-layer:hover #ui-header-content,
+#ui-layer:focus-within #ui-header-content,
+#ui-layer.mobile-active #ui-header-content {
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 0.3s ease-out 0.2s;
+}
+
+#ui-layer.mobile-active #ui-header-content {
+    transition: none !important;
+}
+
+#ui-title {
+    font-weight: 700;
+    font-size: 15px;
+    flex-grow: 1;
+    white-space: nowrap;
+    letter-spacing: -0.02em;
+    color: var(--ui-text);
+}
+
+.header-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--ui-text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-left: 4px;
+    position: relative;
+}
+
+.header-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+}
+
+.header-btn:hover {
+    background: var(--ui-hover-bg);
+    color: var(--ui-text);
+}
+
+.header-btn.active {
+    background: var(--select-color);
+    color: white;
+}
+
+#ui-content {
+    padding: 0 16px 16px 16px;
+    opacity: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: opacity 0.15s ease-out 0s;
+    overflow: hidden;
+    height: 0;
+}
+
+#ui-layer:hover #ui-content,
+#ui-layer:focus-within #ui-content,
+#ui-layer.mobile-active #ui-content {
+    opacity: 1;
+    height: auto;
+    overflow: visible;
+    transition: opacity 0.3s ease-out 0.2s;
+}
+
+#ui-layer.mobile-active #ui-content {
+    transition: none !important;
+}
+
+textarea {
+    width: 100%;
+    height: 80px;
+    resize: none;
+    border: 1px solid var(--dot-color);
+    border-radius: 10px;
+    padding: 12px;
+    font-family: inherit;
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    color: inherit;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s, background-color 0.2s;
+    line-height: 1.5;
+}
+
+textarea:focus {
+    border-color: var(--select-color);
+    background: var(--bg-color);
+}
+
+.btn-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+
+#export-container,
+#btn-import,
+#btn-clear {
+    flex: 1;
+    min-width: 0;
+}
+
+.btn-row button.secondary {
+    width: 100%;
+    height: 100%;
+    padding: 10px 0;
+    font-size: 13px;
+}
+
+button.primary {
+    width: 100%;
+    padding: 10px;
+    cursor: pointer;
+    background: var(--select-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    transition: transform 0.1s, opacity 0.2s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+button.primary:active {
+    transform: scale(0.98);
+}
+
+button.primary:hover {
+    opacity: 0.9;
+}
+
+button.secondary {
+    flex: 1;
+    padding: 8px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--ui-text);
+    border: 1px solid var(--dot-color);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+button.secondary:hover {
+    background: var(--ui-hover-bg);
+    border-color: var(--ui-text-dim);
+}
+
+button.btn-danger {
+    background: var(--c-danger);
+    color: var(--c-danger-text);
+    border-color: var(--c-danger);
+}
+
+button.btn-danger:hover {
+    background: #dc2626;
+    opacity: 1;
+}
+
+/* --- 动作堆叠容器 --- */
+.action-stack {
+    position: relative;
+    height: 38px;
+    overflow: hidden;
+    perspective: 1000px;
+}
+
+.stack-front,
+.stack-back {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    gap: 10px;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stack-back {
+    transform: translateY(100%) rotateX(-90deg);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.action-stack.is-exporting .stack-front {
+    transform: translateY(-100%) rotateX(90deg);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.action-stack.is-exporting .stack-back {
+    transform: translateY(0) rotateX(0deg);
+    opacity: 1;
+    pointer-events: auto;
+}

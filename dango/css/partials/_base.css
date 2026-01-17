@@ -1,0 +1,47 @@
+/* css/partials/_base.css */
+/* 这里存放全局的、基础的样式，如 body, html 和文本选择。 */
+
+/* --- 全局文本高亮优化 --- */
+::selection {
+    background-color: var(--text-selection-bg);
+    color: inherit;
+}
+.node.editing::selection {
+    background-color: var(--text-selection-bg);
+}
+textarea::selection {
+    background-color: var(--text-selection-bg);
+}
+
+body,
+html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    background-image: radial-gradient(var(--dot-color) 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+    color: var(--ui-text);
+    user-select: none;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+body.mode-space {
+    cursor: grab;
+}
+body.mode-pan {
+    cursor: grabbing;
+}
+body.mode-space * {
+    cursor: grab !important;
+}
+body.mode-pan * {
+    cursor: grabbing !important;
+}
+
+body.hide-grid {
+    background-image: none !important;
+}

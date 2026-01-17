@@ -1,0 +1,201 @@
+/* css/partials/_canvas.css */
+/* 所有画布内的元素，包括节点、组、连线、选择框等。 */
+
+#canvas-container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    touch-action: none;
+}
+
+#world {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+}
+
+.node {
+    position: absolute;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    padding: 12px 20px;
+    min-width: 60px;
+    box-shadow: var(--node-shadow);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: grab;
+    z-index: 10;
+    transition: box-shadow 0.2s, transform 0.1s;
+    will-change: transform;
+    text-align: center;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.node:hover {
+    box-shadow: var(--node-shadow-hover);
+}
+
+.node.selected {
+    box-shadow: 0 0 0 2px var(--select-color), 0 0 0 4px rgba(99, 102, 241, 0.2), var(--node-shadow) !important;
+    z-index: 50;
+}
+
+.node.editing {
+    cursor: text;
+    border-color: var(--select-color) !important;
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+    user-select: text;
+    -webkit-user-select: text;
+    transition: none !important;
+    font-variant-ligatures: none;
+    text-align: center !important;
+}
+
+.node.c-white { background: var(--c-white-bg); border-color: var(--c-white-border); color: var(--c-white-text); }
+.node.c-red { background: var(--c-red-bg); border-color: var(--c-red-border); color: var(--c-red-text); }
+.node.c-yellow { background: var(--c-yellow-bg); border-color: var(--c-yellow-border); color: var(--c-yellow-text); }
+.node.c-green { background: var(--c-green-bg); border-color: var(--c-green-border); color: var(--c-green-text); }
+.node.c-blue { background: var(--c-blue-bg); border-color: var(--c-blue-border); color: var(--c-blue-text); }
+.node.c-orange { background: var(--c-orange-bg); border-color: var(--c-orange-border); color: var(--c-orange-text); }
+.node.c-purple { background: var(--c-purple-bg); border-color: var(--c-purple-border); color: var(--c-purple-text); }
+.node.c-pink { background: var(--c-pink-bg); border-color: var(--c-pink-border); color: var(--c-pink-text); }
+.node.c-cyan { background: var(--c-cyan-bg); border-color: var(--c-cyan-border); color: var(--c-cyan-text); }
+
+.group {
+    position: absolute;
+    border: 2px dashed var(--group-border);
+    background: var(--group-bg);
+    border-radius: 20px;
+    z-index: 5;
+    pointer-events: all;
+    transition: background 0.2s;
+}
+
+.group.selected {
+    border-color: var(--select-color);
+    background: rgba(99, 102, 241, 0.15);
+}
+
+svg.connections {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: visible;
+    z-index: 1;
+    pointer-events: none;
+}
+
+line.link {
+    stroke: var(--link-color);
+    stroke-width: 1.5;
+    opacity: 0.35;
+    transition: all 0.2s ease-in-out;
+}
+
+#selection-box {
+    position: absolute;
+    border: 1px solid var(--select-color);
+    background: var(--ui-selection-bg);
+    display: none;
+    z-index: 999;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+/* Link Node Styles */
+.node.is-link {
+    font-size: 12px;
+    padding: 8px 16px;
+    max-width: 240px;
+    color: var(--select-color);
+}
+.node-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-decoration: underline;
+    text-decoration-color: rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+}
+.link-btn {
+    position: absolute;
+    right: -32px;
+    top: 50%;
+    transform: translateY(-50%) scale(0.8);
+    width: 24px;
+    height: 24px;
+    background: var(--bg-color);
+    border: 1px solid var(--select-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--select-color);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+}
+.node.selected .link-btn {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(-50%) scale(1);
+}
+.link-btn:hover {
+    background: var(--select-color);
+    color: white;
+    transform: translateY(-50%) scale(1.1);
+}
+
+/* Todo List Styles */
+.node:has(.todo-item, br) {
+    text-align: left;
+}
+.node:has(.todo-item) {
+    padding-left: 12px;
+}
+.node .todo-item {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: top;
+    line-height: 1;
+    transition: all 0.2s;
+}
+.node .todo-item label {
+    transition: all 0.2s;
+}
+.node .todo-item.checked label {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+.node .todo-checkbox-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-left: -8px;
+    margin-right: 6px;
+    padding: 0 2px;
+    height: 16px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+.node .todo-checkbox-wrapper:hover {
+    background-color: var(--ui-hover-bg);
+}
+.node .todo-item input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+    accent-color: var(--select-color);
+    pointer-events: none;
+}
