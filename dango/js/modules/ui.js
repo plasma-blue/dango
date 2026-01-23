@@ -25,14 +25,18 @@ function closeAbout(aboutOverlay) {
 }
 
 // --- 设置 ---
-export function applySettings() {
-    document.getElementById('check-precise').checked = appState.settings.preciseLayout;
-    document.getElementById('check-hide-grid').checked = appState.settings.hideGrid;
-    document.getElementById('check-alt-as-ctrl').checked = appState.settings.altAsCtrl;
-    document.getElementById('check-hand-drawn').checked = appState.settings.handDrawn;
-    document.getElementById('check-copy-mode').checked = appState.settings.copyMode;
-    document.getElementById('check-copy-as-embed').checked = appState.settings.copyAsEmbed;
-    document.body.classList.toggle('hide-grid', appState.settings.hideGrid);
+export function applySettings(currentState) {
+    // 如果没有传入 currentState，就使用模块内部的 appState（用于 initUI 后的常规调用）
+    const s = currentState || appState; 
+    if (!s) return; // 如果都没有，直接返回，防止错误
+
+    document.getElementById('check-precise').checked = s.settings.preciseLayout;
+    document.getElementById('check-hide-grid').checked = s.settings.hideGrid;
+    document.getElementById('check-alt-as-ctrl').checked = s.settings.altAsCtrl;
+    document.getElementById('check-hand-drawn').checked = s.settings.handDrawn;
+    document.getElementById('check-copy-mode').checked = s.settings.copyMode;
+    document.getElementById('check-copy-as-embed').checked = s.settings.copyAsEmbed;
+    document.body.classList.toggle('hide-grid', s.settings.hideGrid);
 }
 
 // --- 节日 Logo ---
@@ -215,9 +219,7 @@ export function initUI(_els, _state, _callbacks) {
     };
     
     // 8. 嵌入模式UI
-    const urlParams = new URLSearchParams(window.location.search);
-    const isEmbed = urlParams.has('embed'); 
-    if (isEmbed) {
+    if (appState.isEmbed) {
         document.body.setAttribute('data-mode', 'embed');
         const btnInfo = document.getElementById('btn-info-embed');
         const infoCard = document.getElementById('embed-info-card');

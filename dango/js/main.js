@@ -4,10 +4,19 @@ import {
 } from './modules/utils.js';
 import { initI18n, toggleLang, getCurrentLang, getTexts, updateI18n } from './modules/i18n.js';
 import { initUI, showToast, applySettings } from './modules/ui.js';
+import {
+    state, CONFIG, history,
+    pushHistory, undo as undoState, redo as redoState,
+    loadData, saveData, unpackData, packData, MAX_HISTORY
+} from './modules/state.js';
 
-// 2. 关于弹窗逻辑
-const urlParams = new URLSearchParams(window.location.search);
-const isEmbed = urlParams.has('embed'); 
+function undo() {
+    undoState(render);
+}
+
+function redo() {
+    redoState(render);
+}
 
 // 按 ESC 关闭所有弹窗
 window.addEventListener('keydown', e => {
@@ -86,115 +95,8 @@ function createNodesFromInput() {
     render();
 }
 
-// --- State & Config ---
-const state = {
-    nodes: [], groups: [], links: [],
-    view: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1.2 },
-    selection: new Set(),
-    clipboard: [],
-    theme: 'light', // 新增
-    settings: { // 保留这个对象，因为很多地方用到
-        preciseLayout: localStorage.getItem('cc-precise-layout') === 'true',
-        hideGrid: localStorage.getItem('cc-hide-grid') === 'true',
-        altAsCtrl: localStorage.getItem('cc-alt-as-ctrl') === 'true',
-        handDrawn: localStorage.getItem('cc-hand-drawn') === 'true',
-        copyMode: localStorage.getItem('cc-copy-mode') === 'true',
-        copyAsEmbed: localStorage.getItem('cc-copy-as-embed') === 'true',
-    }
-};
 
-// 🆕 History System (Undo/Redo)
-const MAX_HISTORY = 50;
-const history = { undo: [], redo: [] };
 
-function pushHistory() {
-    // 将 Set 转为 Array 存入快照
-    const snapshot = JSON.stringify({
-        nodes: state.nodes,
-        groups: state.groups,
-        links: state.links,
-        selection: Array.from(state.selection) // ✨ 保存选中状态
-    });
-
-    if (history.undo.length > 0 && history.undo[history.undo.length - 1] === snapshot) return;
-
-    history.undo.push(snapshot);
-    if (history.undo.length > MAX_HISTORY) history.undo.shift();
-    history.redo = [];
-}
-
-function undo() {
-    if (history.undo.length === 0) return;
-
-    // 存入当前状态到 redo
-    const currentSnapshot = JSON.stringify({
-        nodes: state.nodes,
-        groups: state.groups,
-        links: state.links,
-        selection: Array.from(state.selection) // ✨
-    });
-    history.redo.push(currentSnapshot);
-
-    const prev = JSON.parse(history.undo.pop());
-    state.nodes = prev.nodes;
-    state.groups = prev.groups;
-    state.links = prev.links;
-
-    // ✨ 恢复选中状态
-    state.selection = new Set(prev.selection || []);
-
-    render();
-}
-
-function redo() {
-    if (history.redo.length === 0) return;
-
-    const currentSnapshot = JSON.stringify({
-        nodes: state.nodes,
-        groups: state.groups,
-        links: state.links,
-        selection: Array.from(state.selection) // ✨
-    });
-    history.undo.push(currentSnapshot);
-
-    const next = JSON.parse(history.redo.pop());
-    state.nodes = next.nodes;
-    state.groups = next.groups;
-    state.links = next.links;
-
-    // ✨ 恢复选中状态
-    state.selection = new Set(next.selection || []);
-
-    render();
-}
-
-const CONFIG = {
-    colors: [
-        'c-white', 'c-red', 'c-yellow', 'c-green', 'c-blue',
-        'c-orange', 'c-purple', 'c-pink', 'c-cyan'
-    ]
-};
-
-// --- Initialization ---
-const LS_KEY = 'cc-canvas-data';
-function loadData() {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) {
-        try {
-            const data = JSON.parse(raw);
-            state.nodes = data.nodes || [];
-            state.groups = data.groups || [];
-            state.links = data.links || [];
-        } catch (e) { console.error('Data load failed', e); }
-    }
-}
-function saveData() {
-    if (isEmbed) return; 
-    localStorage.setItem(LS_KEY, JSON.stringify({
-        nodes: state.nodes, groups: state.groups, links: state.links
-    }));
-}
-loadData();
 
 
 document.getElementById('btn-lang').onclick = (e) => {
@@ -387,7 +289,7 @@ function render() {
 
     syncDomElements(state.groups, els.groupsLayer, 'group', renderGroup);
     syncDomElements(state.nodes, els.nodesLayer, 'node', renderNode);
-    if (isEmbed) updateOpenFullLink();
+    if (state.isEmbed) updateOpenFullLink();
     saveData();
 }
 
@@ -602,105 +504,6 @@ els.input.addEventListener('keydown', (e) => {
         createNodesFromInput();
     }
 });
-function unpackData(packed) {
-    const [version, pNodes, pGroups, pLinks, pSettings] = packed;
-    
-    // 由于 pack 时用了数字索引，解包时我们需要重新生成符合当前逻辑的 ID
-    const shortToLongId = {};
-    const genNewId = (shortId) => {
-        const newId = uid();
-        shortToLongId[shortId] = newId;
-        return newId;
-    };
-
-    // 1. 恢复节点
-    const nodes = pNodes.map(n => ({
-        id: genNewId(n[0]),
-        text: n[1],
-        x: n[2], y: n[3], w: n[4], h: n[5],
-        color: CONFIG.colors[n[6]] || 'c-white'
-    }));
-
-    // 2. 恢复组 (先占位 ID，后续映射成员)
-    const groups = pGroups.map(g => ({
-        id: genNewId(g[0]),
-        x: g[1], y: g[2], w: g[3], h: g[4],
-        _tempMemberIds: g[5] // 临时存储短 ID
-    }));
-
-    // 3. 映射组内成员 ID
-    groups.forEach(g => {
-        g.memberIds = g._tempMemberIds.map(sid => shortToLongId[sid]).filter(id => id);
-        delete g._tempMemberIds;
-    });
-
-    // 4. 恢复连线
-    const links = pLinks.map(l => ({
-        id: uid(),
-        sourceId: shortToLongId[l[0]],
-        targetId: shortToLongId[l[1]]
-    })).filter(l => l.sourceId && l.targetId);
-
-    // 5. 恢复设置
-    const settings = pSettings ? {
-        preciseLayout: pSettings[0] === 1,
-        hideGrid: pSettings[1] === 1,
-        handDrawn: pSettings[2] === 1,
-        copyMode: pSettings[3] === 1
-    } : state.settings;
-
-    return { nodes, groups, links, settings };
-}
-
-// 数据封包：将冗长的 state 转换为极致精简的数组结构
-function packData() {
-    // 1. 建立 ID 映射表，将长 ID 映射为短数字
-    const idMap = {};
-    let idCounter = 0;
-    const allIds = [
-        ...state.nodes.map(n => n.id),
-        ...state.groups.map(g => g.id)
-    ];
-    allIds.forEach(id => idMap[id] = idCounter++);
-
-    // 2. 压缩节点: [id, text, x, y, w, h, colorIdx]
-    const pNodes = state.nodes.map(n => [
-        idMap[n.id],
-        n.text,
-        Math.round(n.x),
-        Math.round(n.y),
-        Math.round(n.w),
-        Math.round(n.h),
-        CONFIG.colors.indexOf(n.color || 'c-white')
-    ]);
-
-    // 3. 压缩组: [id, x, y, w, h, [memberIds]]
-    const pGroups = state.groups.map(g => [
-        idMap[g.id],
-        Math.round(g.x),
-        Math.round(g.y),
-        Math.round(g.w),
-        Math.round(g.h),
-        g.memberIds.map(mid => idMap[mid])
-    ]);
-
-    // 4. 压缩连线: [sourceId, targetId]
-    const pLinks = state.links.map(l => [
-        idMap[l.sourceId],
-        idMap[l.targetId]
-    ]);
-
-    // 5. 压缩设置: 仅存储关键开关位 (使用 Bitmask 或小数组)
-    const pSettings = [
-        state.settings.preciseLayout ? 1 : 0,
-        state.settings.hideGrid ? 1 : 0,
-        state.settings.handDrawn ? 1 : 0,
-        state.settings.copyMode ? 1 : 0
-    ];
-
-    // 返回最终嵌套数组：[版本号, 节点, 组, 连线, 设置]
-    return [1, pNodes, pGroups, pLinks, pSettings];
-}
 
 
 els.helpModal.onclick = (e) => {
@@ -1811,6 +1614,9 @@ function applyHandDrawnStyle() {
     }
 }
 
+// main.js
+// main.js -> loadFromUrl()
+
 function loadFromUrl() {
     const hash = window.location.hash.substring(1);
     if (!hash) return false;
@@ -1818,42 +1624,47 @@ function loadFromUrl() {
     try {
         const decompressed = LZString.decompressFromEncodedURIComponent(hash);
         if (!decompressed) return false;
-        
+
         const dataRaw = JSON.parse(decompressed);
-        // 判断是否是新版数组封包结构
         const data = Array.isArray(dataRaw) ? unpackData(dataRaw) : dataRaw;
 
-        // ... 后续加载逻辑不变 (pushHistory, render, showToast) ...
-        // 💾 捕捉旧数据快照
-        let oldSnapshot = null;
-        if (state.nodes.length > 0) {
-            oldSnapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links] };
-            pushHistory();
-        }
+        // ✨ --- 核心修改 --- ✨
 
-        state.nodes = data.nodes;
-        state.groups = data.groups;
-        state.links = data.links;
-        if (data.settings) state.settings = { ...state.settings, ...data.settings };
+        // 1. 无论画布是否为空，都先创建快照。
+        const oldSnapshot = {
+            nodes: [...state.nodes],
+            groups: [...state.groups],
+            links: [...state.links],
+            selection: Array.from(state.selection)
+        };
+
+        // 2. 将这个快照的字符串形式推入历史记录。
+        //    这样 "撤销" 就能回到导入前的状态。
+        pushHistory(JSON.stringify(oldSnapshot));
+
+        // 3. 更新 state
+        state.nodes = data.nodes || [];
+        state.groups = data.groups || [];
+        state.links = data.links || [];
+        state.selection.clear(); // 导入新数据后，清空旧的选中状态
+        if (data.settings) {
+            Object.assign(state.settings, data.settings);
+        }
 
         render();
         applyHandDrawnStyle();
+        applySettings(state);
 
-        if (!isEmbed) {
-            showToast(TRANSLATIONS[currentLang].toast_imported, oldSnapshot);
+        if (!state.isEmbed) {
+            showToast(getTexts().toast_imported, oldSnapshot);
             window.history.replaceState(null, null, window.location.pathname);
         }
-        
+
         return true;
     } catch (e) {
         console.error("Import failed:", e);
         return false;
     }
-}
-
-// 在页面初始化（比如 window.onload 或 main.js 底部）调用
-if (!loadFromUrl()) {
-    loadData(); // 如果 URL 没数据，再尝试从本地存储加载
 }
 
 
@@ -1926,6 +1737,10 @@ function updateOpenFullLink() {
 
 initI18n();
 
+// 在页面初始化（比如 window.onload 或 main.js 底部）调用
+if (!loadFromUrl()) {
+    loadData(); // 如果 URL 没数据，再尝试从本地存储加载
+}
 // ✨ 新的 UI 初始化 ✨
 initUI(els, state, {
     undo: undo,
@@ -1937,6 +1752,6 @@ initUI(els, state, {
 });
 
 applyHandDrawnStyle();
-applySettings(); // 这个函数现在是从 ui.js 导入的
+applySettings(state); // 这个函数现在是从 ui.js 导入的
 render();
 updateI18n();
