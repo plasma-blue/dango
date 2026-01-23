@@ -9,6 +9,7 @@ import {
     pushHistory, undo as undoState, redo as redoState,
     loadData, saveData, unpackData, packData, MAX_HISTORY
 } from './modules/state.js';
+import { initRender, render } from './modules/render.js';
 
 function undo() {
     undoState(render);
@@ -244,177 +245,6 @@ const els = {
     spotlight: document.getElementById('spotlight-layer'),
 };
 
-// --- Render System ---
-function render() {
-    if (state.nodes.length === 0) {
-        document.body.classList.add('is-empty');
-    } else {
-        document.body.classList.remove('is-empty');
-    }
-    els.world.style.transform = `translate(${state.view.x}px, ${state.view.y}px) scale(${state.view.scale})`;
-
-    els.connectionsLayer.innerHTML = '';
-
-    const defsContent = `<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 8 5 L 0 10" stroke="${getComputedStyle(document.body).getPropertyValue('--link-color').trim()}" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></marker></defs>`;
-    els.connectionsLayer.innerHTML = defsContent;
-
-    state.links.forEach(l => {
-        const n1 = state.nodes.find(n => n.id === l.sourceId);
-        const n2 = state.nodes.find(n => n.id === l.targetId);
-        
-        // ✨ 确保节点尺寸已计算，否则无法计算交点
-        if (n1 && n2 && n1.w && n1.h && n2.w && n2.h) {
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            
-            // ✨✨✨ 核心修改：计算边框交点 ✨✨✨
-            const startPoint = getEdgeIntersection(n2, n1); // 从 n2 指向 n1 的交点
-            const endPoint = getEdgeIntersection(n1, n2);   // 从 n1 指向 n2 的交点
-
-            line.setAttribute('x1', startPoint.x);
-            line.setAttribute('y1', startPoint.y);
-            line.setAttribute('x2', endPoint.x);
-            line.setAttribute('y2', endPoint.y);
-            line.classList.add('link');
-
-            if (l.direction === 'target') {
-                line.setAttribute('marker-end', 'url(#arrowhead)');
-            } else if (l.direction === 'source') {
-                // 注意：当箭头反向时，线条的起点（marker-start）是 endPoint
-                line.setAttribute('marker-start', 'url(#arrowhead)');
-            }
-            
-            els.connectionsLayer.appendChild(line);
-        }
-    });
-
-    syncDomElements(state.groups, els.groupsLayer, 'group', renderGroup);
-    syncDomElements(state.nodes, els.nodesLayer, 'node', renderNode);
-    if (state.isEmbed) updateOpenFullLink();
-    saveData();
-}
-
-function syncDomElements(dataArray, parent, className, renderFn) {
-    const existing = new Map();
-    Array.from(parent.children).forEach(el => existing.set(el.dataset.id, el));
-    const activeIds = new Set();
-    dataArray.forEach(item => {
-        activeIds.add(item.id);
-        let el = existing.get(item.id);
-        if (!el) { el = document.createElement('div'); el.className = className; el.dataset.id = item.id; parent.appendChild(el); }
-        renderFn(el, item);
-    });
-    existing.forEach((el, id) => { if (!activeIds.has(id)) el.remove(); });
-}
-
-function parseMarkdown(text) {
-    let escapedText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-    const lines = escapedText.split('\n');
-    const htmlLines = lines.map(line => {
-        let processedLine = line;
-
-        processedLine = processedLine.replace(
-            /^\[([ xX])\] (.*)/,
-            (match, checked, content) => {
-                const isChecked = checked.toLowerCase() === 'x';
-                // ✨ 关键改动：添加一个 .todo-checkbox-wrapper 作为点击目标
-                return `<span class="todo-item ${isChecked ? 'checked' : ''}" data-checked="${isChecked}">
-                          <span class="todo-checkbox-wrapper">
-                            <input type="checkbox" ${isChecked ? 'checked' : ''} disabled>
-                          </span>
-                          <label>${content}</label>
-                        </span>`;
-            }
-        );
-
-        if (!processedLine.includes('class="todo-item"')) {
-            processedLine = processedLine.replace(/\*\*(.*?)\*\*|__(.*?)__/g, '<strong>$1$2</strong>');
-            processedLine = processedLine.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)|_(.*?)_/g, '<em>$1$2</em>');
-        }
-        
-        return processedLine;
-    });
-
-    return htmlLines.join('<br>');
-}
-
-function renderNode(el, node) {
-    el.setAttribute('role', 'button');
-    el.style.transform = `translate(${node.x}px, ${node.y}px)`;
-    
-    // 如果当前节点正在编辑，跳过内容更新，只更新状态
-    if (el.classList.contains('editing') || el === document.activeElement) {
-        const isSelected = state.selection.has(node.id);
-        const isEditing = '';
-        const classes = ['node', node.color || 'c-white', isEditing ? 'editing' : '', isSelected ? 'selected' : ''].filter(Boolean);
-        el.className = classes.join(' ');
-        return;
-    }
-
-    // --- 新的渲染逻辑 ---
-
-    const isLink = isUrl(node.text);
-    const hasMarkdown = /^\s*- \[.\]|\*\*|__|(?<!\*)\*(?!\*)/.test(node.text);
-
-    // 根据内容决定是否左对齐和允许多行
-    // if (node.text.includes('\n') || hasMarkdown) {
-    //     el.classList.add('has-multiline');
-    // } else {
-    //     el.classList.remove('has-multiline');
-    // }
-
-    if (isLink) {
-        // --- 链接节点的渲染逻辑 (保持不变) ---
-        el.classList.add('is-link');
-        el.classList.remove('has-multiline'); // 链接强制单行
-
-        let textEl = el.querySelector('.node-text');
-        if (!textEl) {
-            el.innerHTML = '';
-            textEl = document.createElement('div');
-            textEl.className = 'node-text';
-            el.appendChild(textEl);
-        }
-        if (textEl.innerText !== node.text) textEl.innerText = node.text;
-
-        let btnEl = el.querySelector('.link-btn');
-        if (!btnEl) {
-            btnEl = document.createElement('div');
-            btnEl.className = 'link-btn';
-            btnEl.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>';
-            btnEl.onmousedown = (e) => e.stopPropagation();
-            btnEl.onclick = (e) => {
-                e.stopPropagation();
-                let url = node.text.trim();
-                if (!url.startsWith('http')) url = 'https://' + url;
-                window.open(url, '_blank');
-            };
-            el.appendChild(btnEl);
-        }
-    } else {
-        // --- 普通文本/Markdown 节点的渲染逻辑 ---
-        el.classList.remove('is-link');
-        
-        // ✨ 关键改动：使用 innerHTML 和 parseMarkdown
-        const newHtml = parseMarkdown(node.text);
-        if (el.innerHTML !== newHtml) {
-            el.innerHTML = newHtml;
-        }
-    }
-
-    // --- 通用样式处理 (保持不变) ---
-    const isSelected = state.selection.has(node.id);
-    const classes = ['node'];
-    if (isLink) classes.push('is-link');
-    classes.push(node.color || 'c-white');
-    if (isSelected) classes.push('selected');
-    // if (el.classList.contains('has-multiline')) classes.push('has-multiline');
-    el.className = classes.join(' ');
-
-    if (!node.w || !node.h || el.offsetWidth !== node.w) {
-        node.w = el.offsetWidth; node.h = el.offsetHeight;
-    }
-}
 
 els.nodesLayer.addEventListener('click', e => {
     // ✨ 核心修改：寻找 .todo-checkbox-wrapper
@@ -456,13 +286,6 @@ els.nodesLayer.addEventListener('click', e => {
     node.text = newLines.join('\n');
     render();
 });
-
-
-function renderGroup(el, group) {
-    el.style.transform = `translate(${group.x}px, ${group.y}px)`;
-    el.style.width = `${group.w}px`; el.style.height = `${group.h}px`;
-    el.className = `group ${state.selection.has(group.id) ? 'selected' : ''}`;
-}
 
 
 // --- Interactions ---
@@ -1741,6 +1564,12 @@ initI18n();
 if (!loadFromUrl()) {
     loadData(); // 如果 URL 没数据，再尝试从本地存储加载
 }
+
+initRender(els, state, {
+    saveData: saveData,
+    updateOpenFullLink: updateOpenFullLink,
+});
+
 // ✨ 新的 UI 初始化 ✨
 initUI(els, state, {
     undo: undo,
