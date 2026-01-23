@@ -2,61 +2,18 @@ import {
     uid, isUrl, screenToWorld, getNodeCenter, getEdgeIntersection, 
     getStandardRect, isIntersect, getTimestamp, escapeHtml, downloadBlob 
 } from './modules/utils.js';
-
 import { initI18n, toggleLang, getCurrentLang, getTexts, updateI18n } from './modules/i18n.js';
-
+import { initUI, showToast, applySettings } from './modules/ui.js';
 
 // 2. 关于弹窗逻辑
-const aboutOverlay = document.getElementById('about-overlay');
-const btnTriggerAbout = document.getElementById('trigger-about');
-const btnCloseAbout = document.getElementById('btn-close-about');
 const urlParams = new URLSearchParams(window.location.search);
 const isEmbed = urlParams.has('embed'); 
-
-if (isEmbed) {
-    document.body.setAttribute('data-mode', 'embed');
-}
-
-// 打开关于
-btnTriggerAbout.onclick = (e) => {
-    e.stopPropagation();
-    
-    // 1. 关闭帮助菜单的显示状态
-    els.helpModal.classList.remove('show');
-    els.btnHelp.classList.remove('active');
-    
-    // 2. ✨ 核心修复：让按钮失去焦点
-    // 这会打破 CSS 的 #ui-layer:focus-within 规则，
-    // 导致左上角的大面板自动缩回成一个小胶囊
-    btnTriggerAbout.blur(); 
-    
-    // 3. 打开关于弹窗
-    aboutOverlay.classList.add('show');
-};
-
-// 关闭关于
-function closeAbout() {
-    aboutOverlay.classList.remove('show');
-}
-btnCloseAbout.onclick = closeAbout;
-aboutOverlay.onclick = (e) => {
-    // 点击遮罩层关闭
-    if (e.target === aboutOverlay) closeAbout();
-};
 
 // 按 ESC 关闭所有弹窗
 window.addEventListener('keydown', e => {
     // ... 原有代码 ...
     if (e.code === 'Escape') {
-        // 依次关闭：关于 -> 设置/帮助 -> 选中
-        if (aboutOverlay.classList.contains('show')) {
-            closeAbout();
-        } else if (els.helpModal.classList.contains('show') || modalSettings.classList.contains('show')) {
-            els.helpModal.classList.remove('show');
-            els.btnHelp.classList.remove('active');
-            modalSettings.classList.remove('show');
-            btnSettings.classList.remove('active');
-        } else {
+        if (state.selection.size > 0) {
             state.selection.clear();
             render();
         }
@@ -134,7 +91,16 @@ const state = {
     nodes: [], groups: [], links: [],
     view: { x: window.innerWidth / 2, y: window.innerHeight / 2, scale: 1.2 },
     selection: new Set(),
-    clipboard: []
+    clipboard: [],
+    theme: 'light', // 新增
+    settings: { // 保留这个对象，因为很多地方用到
+        preciseLayout: localStorage.getItem('cc-precise-layout') === 'true',
+        hideGrid: localStorage.getItem('cc-hide-grid') === 'true',
+        altAsCtrl: localStorage.getItem('cc-alt-as-ctrl') === 'true',
+        handDrawn: localStorage.getItem('cc-hand-drawn') === 'true',
+        copyMode: localStorage.getItem('cc-copy-mode') === 'true',
+        copyAsEmbed: localStorage.getItem('cc-copy-as-embed') === 'true',
+    }
 };
 
 // 🆕 History System (Undo/Redo)
@@ -230,26 +196,6 @@ function saveData() {
 }
 loadData();
 
-// --- Theme Logic ---
-const themeBtn = document.getElementById('btn-theme');
-const htmlEl = document.documentElement;
-let isDark = localStorage.getItem('cc-theme') === 'dark';
-
-// Icons for theme
-const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
-const ICON_SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
-
-function updateTheme() {
-    htmlEl.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    themeBtn.innerHTML = isDark ? ICON_SUN : ICON_MOON;
-    localStorage.setItem('cc-theme', isDark ? 'dark' : 'light');
-}
-updateTheme();
-themeBtn.onclick = (e) => {
-    isDark = !isDark;
-    updateTheme();
-    e.currentTarget.blur();
-};
 
 document.getElementById('btn-lang').onclick = (e) => {
     toggleLang();
@@ -257,91 +203,12 @@ document.getElementById('btn-lang').onclick = (e) => {
     e.currentTarget.blur();
 };
 
-state.settings = {
-    preciseLayout: localStorage.getItem('cc-precise-layout') === 'true',
-    hideGrid: localStorage.getItem('cc-hide-grid') === 'true',
-    altAsCtrl: localStorage.getItem('cc-alt-as-ctrl') === 'true',
-    handDrawn: localStorage.getItem('cc-hand-drawn') === 'true',
-    copyMode: localStorage.getItem('cc-copy-mode') === 'true',
-    copyAsEmbed: localStorage.getItem('cc-copy-as-embed') === 'true',
-};
-const checkCopyMode = document.getElementById('check-copy-mode');
-// 齿轮按钮点击
-const btnSettings = document.getElementById('btn-settings');
-const modalSettings = document.getElementById('settings-modal');
-const checkPrecise = document.getElementById('check-precise');
-const checkHideGrid = document.getElementById('check-hide-grid');
-const checkAltAsCtrl = document.getElementById('check-alt-as-ctrl');
-const checkHandDrawn = document.getElementById('check-hand-drawn');
-const checkCopyAsEmbed = document.getElementById('check-copy-as-embed');
-
-function applySettings() {
-    checkPrecise.checked = state.settings.preciseLayout;
-    checkHideGrid.checked = state.settings.hideGrid;
-    checkAltAsCtrl.checked = state.settings.altAsCtrl;
-    checkHandDrawn.checked = state.settings.handDrawn;
-    // 根据状态给 body 添加或移除类
-    document.body.classList.toggle('hide-grid', state.settings.hideGrid);
-    checkCopyMode.checked = state.settings.copyMode;
-    checkCopyAsEmbed.checked = state.settings.copyAsEmbed;
-}
-
-checkPrecise.onchange = (e) => {
-    state.settings.preciseLayout = e.target.checked;
-    localStorage.setItem('cc-precise-layout', e.target.checked);
-};
-
-checkHideGrid.onchange = (e) => {
-    state.settings.hideGrid = e.target.checked;
-    localStorage.setItem('cc-hide-grid', e.target.checked);
-    document.body.classList.toggle('hide-grid', state.settings.hideGrid);
-};
-
-checkAltAsCtrl.onchange = (e) => {
-    state.settings.altAsCtrl = e.target.checked;
-    localStorage.setItem('cc-alt-as-ctrl', e.target.checked);
-};
-
-checkCopyMode.onchange = (e) => {
-    state.settings.copyMode = e.target.checked;
-    localStorage.setItem('cc-copy-mode', e.target.checked);
-};
-
-checkCopyAsEmbed.onchange = (e) => {
-    state.settings.copyAsEmbed = e.target.checked;
-    localStorage.setItem('cc-copy-as-embed', e.target.checked);
-};
 
 function isModifier(e) {
     // 如果开启了选项，Alt 也可以作为辅助键
     return e.ctrlKey || e.metaKey || (state.settings.altAsCtrl && e.altKey);
 }
 
-btnSettings.onclick = (e) => {
-    e.stopPropagation(); // 阻止冒泡，防止触发 window.onclick
-
-    const isShowing = modalSettings.classList.contains('show');
-    if (isShowing) {
-        modalSettings.classList.remove('show');
-        btnSettings.classList.remove('active');
-    } else {
-        // 打开设置时，关闭帮助面板，避免重叠
-        els.helpModal.classList.remove('show');
-        els.btnHelp.classList.remove('active');
-
-        modalSettings.classList.add('show');
-        btnSettings.classList.add('active');
-    }
-};
-
-
-// 点击外部关闭设置
-window.addEventListener('click', (e) => {
-    if (!btnSettings.contains(e.target)) {
-        modalSettings.classList.remove('show');
-        btnSettings.classList.remove('active');
-    }
-});
 
 // --- 节点多路动画系统 ---
 let nodeAnimationId = null;
@@ -696,39 +563,6 @@ function renderGroup(el, group) {
 }
 
 
-// --- 节日 Logo 逻辑 ---
-function updateSeasonalLogo() {
-    const now = new Date();
-    const month = now.getMonth() + 1; // 0-11 改为 1-12
-    const date = now.getDate();
-    const logoBox = document.getElementById('ui-logo-box');
-
-    let emoji = "✨"; // 默认：星星
-
-    // 1. 2026 春节
-    if ((month === 2 && date >= 16) || (month === 2 && date <= 23)) {
-        emoji = "🧧";
-    }
-    // 2. 情人节 (2月14)
-    else if (month === 2 && date === 14) {
-        emoji = "💖";
-    }
-    // 3. 万圣节 (10月25 - 10月31)
-    else if (month === 10 && date >= 25) {
-        emoji = "🎃";
-    }
-    // 4. 圣诞节 (12月20 - 12月26)
-    else if (month === 12 && date >= 20 && date <= 31) {
-        emoji = "🎄";
-    }
-    // 5. 元旦 (12月31 - 1月1)
-    else if ((month === 1 && date <= 3)) {
-        emoji = "🎉";
-    }
-    logoBox.innerText = emoji;
-}
-
-updateSeasonalLogo();
 // --- Interactions ---
 document.getElementById('btn-add').onclick = createNodesFromInput;
 
@@ -868,60 +702,6 @@ function packData() {
     return [1, pNodes, pGroups, pLinks, pSettings];
 }
 
-const btnClear = document.getElementById('btn-clear');
-let clearConfirm = false;
-btnClear.onclick = () => {
-    const texts = getTexts();
-    if (!clearConfirm) {
-        clearConfirm = true;
-        btnClear.innerText = texts['confirm_clear'];
-        btnClear.classList.add('btn-danger');
-        setTimeout(() => {
-            if (clearConfirm) {
-                clearConfirm = false;
-                btnClear.innerText = "🗑️";
-                btnClear.classList.remove('btn-danger');
-            }
-        }, 3000);
-    } else {
-        // 💾 捕捉快照
-        const snapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links] };
-
-        pushHistory();
-        state.nodes = []; state.groups = []; state.links = []; state.selection.clear();
-
-        clearConfirm = false;
-        btnClear.innerText = "🗑️";
-        btnClear.classList.remove('btn-danger');
-        render();
-
-        // 🍞 弹出带“救命稻草”的 Toast
-        showToast(texts.toast_cleared, snapshot);
-    }
-};
-
-// Help Toggle
-els.btnHelp.onclick = (e) => {
-    e.stopPropagation();
-
-    const isShowing = els.helpModal.classList.contains('show');
-    if (isShowing) {
-        els.helpModal.classList.remove('show');
-        els.btnHelp.classList.remove('active');
-    } else {
-        // 打开帮助时，关闭设置面板
-        modalSettings.classList.remove('show');
-        btnSettings.classList.remove('active');
-
-        els.helpModal.classList.add('show');
-        els.btnHelp.classList.add('active');
-    }
-};
-
-// 3. ✨ 核心改进：点击面板内部时，不要关闭面板
-modalSettings.onclick = (e) => {
-    e.stopPropagation();
-};
 
 els.helpModal.onclick = (e) => {
     e.stopPropagation();
@@ -933,18 +713,6 @@ els.uiLayer.addEventListener('mouseleave', () => {
     els.btnHelp.classList.remove('active');
 });
 els.helpModal.onclick = (e) => e.stopPropagation();
-window.addEventListener('click', (e) => {
-    // 关闭设置
-    if (!btnSettings.contains(e.target) && !modalSettings.contains(e.target)) {
-        modalSettings.classList.remove('show');
-        btnSettings.classList.remove('active');
-    }
-    // 关闭帮助
-    if (!els.btnHelp.contains(e.target) && !els.helpModal.contains(e.target)) {
-        els.helpModal.classList.remove('show');
-        els.btnHelp.classList.remove('active');
-    }
-});
 
 let dragStart = null;
 let mode = null;
@@ -954,6 +722,9 @@ const keys = {};
 let stateBeforeDrag = null;
 let isPrepareToClone = false;
 let targetAlreadySelectedAtStart = false; // 记录点击前的选中状态
+
+let targetIdAtMouseDown = null; 
+let hasMovedDuringDrag = false;
 
 els.container.addEventListener('mousedown', e => {
     if (e.target.closest('.todo-checkbox-wrapper')) {
@@ -976,7 +747,7 @@ els.container.addEventListener('mousedown', e => {
     if (e.button === 0) {
         const nodeEl = e.target.closest('.node');
         const groupEl = e.target.closest('.group');
-        const worldPos = screenToWorld(e.clientX, e.clientY);
+        const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
 
         if (nodeEl || groupEl) {
             const id = (nodeEl || groupEl).dataset.id;
@@ -1028,7 +799,7 @@ els.container.addEventListener('mousemove', e => {
         state.view.y = dragStart.viewY + (e.clientY - dragStart.y);
         render();
     } else if (mode === 'move') {
-        const worldPos = screenToWorld(e.clientX, e.clientY);
+        const worldPos = screenToWorld(e.clientX, e.clientY, state.view);
         const dx = worldPos.x - dragStart.x;
         const dy = worldPos.y - dragStart.y;
 
@@ -1181,7 +952,7 @@ els.container.addEventListener('touchstart', e => {
         initialPinchScale = state.view.scale;
         // 记录缩放中心，用于优化缩放体验（可选，简易版可省略）
         const center = getPinchCenter(e);
-        pinchCenter = screenToWorld(center.x, center.y); 
+        pinchCenter = screenToWorld(center.x, center.y, state.view); 
         return;
     }
 
@@ -1232,7 +1003,7 @@ els.container.addEventListener('touchstart', e => {
             selection: Array.from(state.selection) 
         });
         
-        const worldPos = screenToWorld(pos.x, pos.y);
+        const worldPos = screenToWorld(pos.x, pos.y, state.view);
         dragStart = { x: worldPos.x, y: worldPos.y, initialPos: getSelectionPositions() };
 
     } else {
@@ -1281,7 +1052,7 @@ els.container.addEventListener('touchmove', e => {
         if (viewAnimationId) { cancelAnimationFrame(viewAnimationId); viewAnimationId = null; }
         render();
     } else if (mode === 'move') {
-        const worldPos = screenToWorld(pos.x, pos.y);
+        const worldPos = screenToWorld(pos.x, pos.y, state.view);
         const dx = worldPos.x - dragStart.x;
         const dy = worldPos.y - dragStart.y;
         
@@ -1553,7 +1324,7 @@ function changeZoom(factor) {
     // 默认以窗口中心缩放
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
-    const worldPos = screenToWorld(centerX, centerY);
+    const worldPos = screenToWorld(centerX, centerY, state.view);
 
     const oldScale = state.view.scale;
     state.view.scale = Math.max(0.1, Math.min(5, oldScale * factor));
@@ -1591,6 +1362,17 @@ function updateSelectBox(x1, y1, x2, y2) {
 }
 
 // --- Logic Actions ---
+
+function clearCanvas() {
+    // 💾 捕捉快照
+    const snapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links] };
+    pushHistory();
+    state.nodes = []; state.groups = []; state.links = []; state.selection.clear();
+    render();
+    // 🍞 弹出带“救命稻草”的 Toast
+    showToast(getTexts().toast_cleared, snapshot);
+}
+
 function copySelection() {
     const selNodes = state.nodes.filter(n => state.selection.has(n.id));
     const selGroups = state.groups.filter(g => state.selection.has(g.id));
@@ -1813,7 +1595,7 @@ function processDangoFile(file) {
     
     // 检查文件后缀（非强制，但更安全）
     if (!file.name.endsWith('.dango') && !file.name.endsWith('.json')) {
-        showToast(TRANSLATIONS[currentLang].alert_file_err);
+        showToast(getTexts().alert_file_err);
         return;
     }
 
@@ -1838,11 +1620,11 @@ function processDangoFile(file) {
             
             render();
             // 🍞 成功提示
-            showToast(TRANSLATIONS[currentLang].toast_import_success, oldSnapshot);
+            showToast(getTexts().toast_import_success, oldSnapshot);
         }
         catch (err) {
             console.error(err);
-            showToast(TRANSLATIONS[currentLang].alert_file_err);
+            showToast(getTexts().alert_file_err);
         }
     };
     reader.readAsText(file);
@@ -1955,10 +1737,10 @@ async function downloadImage() {
                 try {
                     const item = new ClipboardItem({ "image/png": blob });
                     await navigator.clipboard.write([item]);
-                    showToast(TRANSLATIONS[currentLang].toast_copy_success);
+                    showToast(getTexts().toast_copy_success);
                 } catch (err) {
                     console.error(err);
-                    showToast(TRANSLATIONS[currentLang].toast_copy_fail);
+                    showToast(getTexts().toast_copy_fail);
                 }
                 URL.revokeObjectURL(url);
             }, 'image/png');
@@ -1977,58 +1759,6 @@ async function downloadImage() {
 }
 
 
-const actionStack = document.getElementById('action-stack');
-const btnExportMain = document.getElementById('btn-export-main');
-let exportResetTimer = null;
-
-// 面板重置函数
-function resetActionStack() {
-    actionStack.classList.remove('is-exporting');
-    clearTimeout(exportResetTimer);
-}
-
-// 点击“导出”：翻转
-btnExportMain.onclick = (e) => {
-    e.stopPropagation();
-    actionStack.classList.add('is-exporting');
-
-    // 5秒自动重置（用户无操作时自动退回）
-    clearTimeout(exportResetTimer);
-    exportResetTimer = setTimeout(resetActionStack, 5000);
-};
-
-// 具体的选项逻辑
-document.getElementById('opt-json').onclick = (e) => {
-    e.stopPropagation();
-    exportJson();
-    resetActionStack(); // 点击即消失
-};
-
-document.getElementById('opt-png').onclick = (e) => {
-    e.stopPropagation();
-    downloadImage(); // 默认 PNG
-    resetActionStack();
-};
-
-// document.getElementById('opt-svg').onclick = (e) => {
-//     e.stopPropagation();
-//     downloadImage('svg'); // 选中的 SVG
-//     resetActionStack();
-// };
-
-document.getElementById('opt-link').onclick = (e) => {
-    e.stopPropagation();
-    createShareLink();
-    resetActionStack(); // 你的直觉：LINK 点击后也立即消失
-};
-
-// 补充：点击页面其他地方也重置面板
-window.addEventListener('click', () => {
-    if (actionStack.classList.contains('is-exporting')) {
-        resetActionStack();
-    }
-});
-
 function createShareLink() {
     const packed = packData();
     const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(packed));
@@ -2042,13 +1772,13 @@ function createShareLink() {
         const iframeCode = `<iframe src="${embedUrl}" style="width: 100%; height: 500px; border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" allow="clipboard-write"></iframe>`;
         
         navigator.clipboard.writeText(iframeCode).then(() => {
-            showToast(TRANSLATIONS[currentLang].toast_copy_embed_success);
+            showToast(getTexts().toast_copy_embed_success);
         });
     } else {
         // 普通链接模式
         const url = baseUrl + '#' + compressed;
         navigator.clipboard.writeText(url).then(() => {
-            showToast(currentLang === 'zh' ? "链接已复制到剪贴板 ✨" : "Link copied to clipboard ✨");
+            showToast(getTexts().toast_copy_success);
         });
     }
 }
@@ -2071,13 +1801,6 @@ function loadHandDrawnFonts() {
     fontsLoaded = true;
 }
 
-
-// 3. 绑定开关
-checkHandDrawn.onchange = (e) => {
-    state.settings.handDrawn = e.target.checked;
-    localStorage.setItem('cc-hand-drawn', e.target.checked);
-    applyHandDrawnStyle();
-};
 
 function applyHandDrawnStyle() {
     if (state.settings.handDrawn) {
@@ -2114,7 +1837,6 @@ function loadFromUrl() {
         if (data.settings) state.settings = { ...state.settings, ...data.settings };
 
         render();
-        applySettings();
         applyHandDrawnStyle();
 
         if (!isEmbed) {
@@ -2134,55 +1856,6 @@ if (!loadFromUrl()) {
     loadData(); // 如果 URL 没数据，再尝试从本地存储加载
 }
 
-function showToast(message, safetySnapshot = null) {
-    const texts = getTexts();
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-
-    // 基础文本
-    const textNode = document.createElement('span');
-    textNode.innerText = message;
-    toast.appendChild(textNode);
-
-    // 如果提供了快照，添加“救命稻草”按钮
-    if (safetySnapshot) {
-        const actions = document.createElement('div');
-        actions.className = 'toast-actions';
-
-        // 1. 撤销按钮
-        const btnUndo = document.createElement('button');
-        btnUndo.className = 'btn-toast';
-        btnUndo.innerText = texts.toast_undo;
-        btnUndo.onclick = () => { undo(); toast.remove(); };
-
-        // 2. 导出备份按钮
-        const btnExport = document.createElement('button');
-        btnExport.className = 'btn-toast';
-        btnExport.innerText = texts.toast_export_prev;
-        btnExport.onclick = () => {
-            const data = JSON.stringify(safetySnapshot, null, 2);
-            downloadBlob(data, `safety-backup_${getTimestamp()}.dango`, 'application/json');
-            toast.remove();
-        };
-
-        actions.appendChild(btnUndo);
-        actions.appendChild(btnExport);
-        toast.appendChild(actions);
-    }
-
-    container.appendChild(toast);
-    setTimeout(() => toast.classList.add('show'), 10);
-
-    // 有交互的 Toast 停留时间稍长 (6秒)，纯文本 3秒
-    const delay = safetySnapshot ? 6000 : 3000;
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 400);
-        }
-    }, delay);
-}
 
 function resetViewToCenter(animated = true) {
     let targetX, targetY, targetScale = 1.2;
@@ -2250,28 +1923,20 @@ function updateOpenFullLink() {
     btn.href = baseUrl + '#' + compressed;
 }
 
-if (isEmbed) {
-    const btnInfo = document.getElementById('btn-info-embed');
-    const infoCard = document.getElementById('embed-info-card');
 
-    btnInfo.onclick = (e) => {
-        e.stopPropagation();
-        const isVisible = infoCard.style.opacity === "1";
-        infoCard.style.opacity = isVisible ? "0" : "1";
-        infoCard.style.pointerEvents = isVisible ? "none" : "auto";
-        infoCard.style.transform = isVisible ? "translateY(10px) scale(0.95)" : "translateY(0) scale(1)";
-    };
-    
-    // 点击其他地方关闭卡片
-    window.addEventListener('click', () => {
-        infoCard.style.opacity = "0";
-        infoCard.style.pointerEvents = "none";
-        infoCard.style.transform = "translateY(10px) scale(0.95)";
-    });
-}
-// 初始应用
-initI18n(); // 初始化语言状态
+initI18n();
+
+// ✨ 新的 UI 初始化 ✨
+initUI(els, state, {
+    undo: undo,
+    clearCanvas: clearCanvas,
+    exportJson: exportJson,
+    downloadImage: downloadImage,
+    createShareLink: createShareLink,
+    applyHandDrawnStyle: applyHandDrawnStyle,
+});
+
 applyHandDrawnStyle();
-applySettings();
+applySettings(); // 这个函数现在是从 ui.js 导入的
 render();
 updateI18n();
