@@ -18,43 +18,87 @@
     transform-origin: 0 0;
 }
 
+/* 1. 基础节点样式：保持稳定 */
 .node {
     position: absolute;
     border: 1px solid transparent;
     border-radius: 12px;
     padding: 12px 20px;
     min-width: 60px;
+    
+    /* 重点：保留阴影，但移除 box-shadow 的 transition */
+    /* 我们不希望原来的灰色投影动来动去，只希望文字和位置动 */
     box-shadow: var(--node-shadow);
+    transition: transform 0.1s; 
+    
     font-size: 14px;
     font-weight: 500;
     cursor: grab;
     z-index: 10;
-    transition: box-shadow 0.2s, transform 0.1s;
     will-change: transform;
     text-align: center;
     white-space: nowrap;
     line-height: 1.2;
 }
 
+/* 2. 这里的 ::after 是专门的“高亮光圈”层 */
+.node::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    pointer-events: none;
+    z-index: 50;
+
+    /* 定义选中时的边框样式 */
+    box-shadow: 0 0 0 2px var(--select-color), 0 0 0 4px rgba(99, 102, 241, 0.2);
+
+    /* 动画初始状态： */
+    /* 1. 透明 */
+    opacity: 0;
+    /* 2. 稍微缩小一点点 (0.95)，这样动画开始时，它像是从节点“里面”长出来的 */
+    transform: scale(0.95);
+    
+    /* 这里的贝塞尔曲线 (cubic-bezier) 是灵魂 */
+    /* 它有一个轻微的“回弹”效果，让选中感觉很有弹性 */
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 .node:hover {
     box-shadow: var(--node-shadow-hover);
 }
 
+/* 3. 选中状态 */
 .node.selected {
-    box-shadow: 0 0 0 2px var(--select-color), 0 0 0 4px rgba(99, 102, 241, 0.2), var(--node-shadow) !important;
+    /* 只是提升层级，不动本体样式 */
     z-index: 50;
 }
 
+/* 4. 选中时触发 ::after 动画 */
+.node.selected::after {
+    opacity: 1;
+    /* 放大到正常大小，配合上面的 cubic-bezier，会有一个轻微溢出再收回的视觉欺骗 */
+    transform: scale(1);
+}
+
+/* 编辑状态适配 */
 .node.editing {
     cursor: text;
     border-color: var(--select-color) !important;
     outline: none;
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
-    user-select: text;
-    -webkit-user-select: text;
     transition: none !important;
     font-variant-ligatures: none;
     text-align: center !important;
+}
+
+/* 既然用了 ::after 做高亮，编辑时我们可以隐藏那个动画光圈，或者让它保持常亮 */
+/* 这里选择让它保持常亮，保持一致性 */
+.node.editing::after {
+    opacity: 1;
+    transform: scale(1);
+    /* 编辑时不要阴影光晕，只要实线边框更清晰？还是保持原样？ */
+    /* 保持原样通常比较好看。如果觉得太乱，可以把下面的注释解开 */
+    /* box-shadow: 0 0 0 2px var(--select-color); */
 }
 
 .node.c-white { background: var(--c-white-bg); border-color: var(--c-white-border); color: var(--c-white-text); }
