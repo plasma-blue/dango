@@ -1,3 +1,7 @@
+import { 
+    uid, isUrl, screenToWorld, getNodeCenter, getEdgeIntersection, 
+    getStandardRect, isIntersect, getTimestamp, escapeHtml, downloadBlob 
+} from './modules/utils.js';
 
 const TRANSLATIONS = {
     zh: {
@@ -142,10 +146,6 @@ const TRANSLATIONS = {
     }
 };
 
-// 简单的纯链接判断 (以 http, https 或 www 开头，且不含空格)
-function isUrl(str) {
-    return /^(https?:\/\/|www\.)\S+$/i.test(str.trim());
-}
 // --- 修改初始化逻辑 ---
 const LS_LANG_KEY = 'cc-lang';
 // 优先从本地缓存读取，其次检测浏览器语言（只支持中英，其余默认英）
@@ -398,7 +398,6 @@ const CONFIG = {
         'c-orange', 'c-purple', 'c-pink', 'c-cyan'
     ]
 };
-const uid = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
 // --- Initialization ---
 const LS_KEY = 'cc-canvas-data';
@@ -879,58 +878,8 @@ function renderGroup(el, group) {
     el.style.width = `${group.w}px`; el.style.height = `${group.h}px`;
     el.className = `group ${state.selection.has(group.id) ? 'selected' : ''}`;
 }
-function getNodeCenter(n) { return { x: n.x + (n.w || 0) / 2, y: n.y + (n.h || 0) / 2 }; }
 
-function getEdgeIntersection(sourceNode, targetNode) {
-    const sx = sourceNode.x + sourceNode.w / 2;
-    const sy = sourceNode.y + sourceNode.h / 2;
-    const tx = targetNode.x + targetNode.w / 2;
-    const ty = targetNode.y + targetNode.h / 2;
 
-    const dx = tx - sx;
-    const dy = ty - sy;
-
-    const w = targetNode.w / 2;
-    const h = targetNode.h / 2;
-
-    // 避免除以零的情况
-    if (dx === 0 && dy === 0) {
-        return { x: tx, y: ty };
-    }
-
-    let endX, endY;
-
-    // 计算斜率的绝对值
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-
-    // 判断交点在哪个边上
-    if (absDy * w < absDx * h) {
-        // 交点在左右两侧
-        if (dx > 0) {
-            // 从左侧进入
-            endX = tx - w;
-            endY = ty - (dy / dx) * w;
-        } else {
-            // 从右侧进入
-            endX = tx + w;
-            endY = ty + (dy / dx) * w;
-        }
-    } else {
-        // 交点在上下两侧
-        if (dy > 0) {
-            // 从上方进入
-            endY = ty - h;
-            endX = tx - (dx / dy) * h;
-        } else {
-            // 从下方进入
-            endY = ty + h;
-            endX = tx + (dx / dy) * h;
-        }
-    }
-
-    return { x: endX, y: endY };
-}
 // --- 节日 Logo 逻辑 ---
 function updateSeasonalLogo() {
     const now = new Date();
@@ -1800,7 +1749,6 @@ function changeZoom(factor) {
     render();
 }
 
-function screenToWorld(sx, sy) { return { x: (sx - state.view.x) / state.view.scale, y: (sy - state.view.y) / state.view.scale }; }
 function handleSelection(id, multi) {
     if (!multi) { if (!state.selection.has(id)) { state.selection.clear(); state.selection.add(id); } }
     else { if (state.selection.has(id)) state.selection.delete(id); else state.selection.add(id); }
@@ -1824,11 +1772,6 @@ function updateSelectBox(x1, y1, x2, y2) {
     const r = getStandardRect(x1, y1, x2, y2);
     els.selectBox.style.left = r.x + 'px'; els.selectBox.style.top = r.y + 'px';
     els.selectBox.style.width = r.w + 'px'; els.selectBox.style.height = r.h + 'px';
-}
-function getStandardRect(x1, y1, x2, y2) { return { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x1 - x2), h: Math.abs(y1 - y2) }; }
-function isIntersect(r1, r2) {
-    const r2w = r2.w || 60; const r2h = r2.h || 40;
-    return !(r2.x > r1.x + r1.w || r2.x + r2w < r1.x || r2.y > r1.y + r1.h || r2.y + r2h < r1.y);
 }
 
 // --- Logic Actions ---
@@ -1991,10 +1934,7 @@ function distributeSelection(axis) {
     render();
 }
 
-function getTimestamp() {
-    const now = new Date(); const pad = (n) => String(n).padStart(2, '0');
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
-}
+
 function exportJson() {
     const data = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
@@ -2218,20 +2158,6 @@ async function downloadImage() {
         }
     };
     img.src = url;
-}
-
-// 辅助：转义 HTML 特殊字符防止 SVG 报错
-function escapeHtml(text) {
-    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-}
-
-// 辅助：下载函数
-function downloadBlob(content, filename, contentType) {
-    const blob = new Blob([content], { type: contentType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
 }
 
 
