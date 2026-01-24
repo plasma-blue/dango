@@ -10,16 +10,13 @@ import {
     loadData, saveData, unpackData, packData, MAX_HISTORY
 } from './modules/state.js';
 import { initRender, render } from './modules/render.js';
-import { animateNodesTo, smartAlignSelection } from './modules/animation.js';
 import { 
     createNodesFromInput as createNodesAction, // 使用别名以防命名冲突
-    clearCanvas, copySelection, pasteClipboard, createGroup, dissolveGroup,
-    toggleLink, deleteSelection, nudgeSelection, colorSelection,
-    alignSelection, distributeSelection
+    clearCanvas
 } from './modules/actions.js';
 import { initIO, exportJson, processDangoFile, downloadImage, createShareLink } from './modules/io.js';
 import { initView, changeZoom, resetViewToCenter, cancelViewAnimation } from './modules/view.js';
-
+import { initShortcuts, keys, isModifier } from './modules/shortcuts.js';
 function undo() {
     undoState(render);
 }
@@ -61,13 +58,6 @@ document.getElementById('btn-lang').onclick = (e) => {
     updateI18n();
     e.currentTarget.blur();
 };
-
-
-function isModifier(e) {
-    // 如果开启了选项，Alt 也可以作为辅助键
-    return e.ctrlKey || e.metaKey || (state.settings.altAsCtrl && e.altKey);
-}
-
 
 // --- DOM Refs ---
 const els = {
@@ -182,7 +172,6 @@ els.helpModal.onclick = (e) => e.stopPropagation();
 
 let dragStart = null;
 let mode = null;
-const keys = {};
 
 // Record state BEFORE manipulation starts
 let stateBeforeDrag = null;
@@ -628,153 +617,6 @@ els.container.addEventListener('dblclick', e => {
     handleNodeEdit(nodeEl);
 });
 
-window.addEventListener('keydown', e => {
-    // 如果正在输入，跳过
-    const isEditing = e.target.isContentEditable || e.target.tagName === 'TEXTAREA';
-    
-    // 1. 如果正在编辑，ESC 退出编辑而不取消选中，Enter 结束编辑
-    if (isEditing) {
-        if (e.code === 'Escape') {
-            e.target.blur(); // 触发 blur 会保存并退出
-            e.stopPropagation(); // 阻止 ESC 进一步影响 UI
-            return;
-        }
-        if (e.code === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            e.target.blur();
-            return;
-        }
-        return; // 编辑状态下不触发其他快捷键
-    }
-
-    keys[e.code] = true;
-
-    // 2. 画布缩放拦截 (Ctrl + +/-/0)
-    if (isModifier(e)) {
-        if (e.key === '=' || e.key === '+') {
-            e.preventDefault();
-            changeZoom(1.2); 
-            return;
-        }
-        if (e.key === '-') {
-            e.preventDefault();
-            changeZoom(0.8);
-            return;
-        }
-        if (e.key === '0') {
-            e.preventDefault();
-            resetViewToCenter(true);
-            return;
-        }
-    }
-
-    // 3. 回车编辑选中的节点
-    if (e.code === 'Enter' && state.selection.size === 1) {
-        e.preventDefault();
-        const selectedId = Array.from(state.selection)[0];
-        const nodeEl = document.querySelector(`.node[data-id="${selectedId}"]`);
-        if (nodeEl) handleNodeEdit(nodeEl);
-        return;
-    }
-    
-    // 4. 优化 ESC 逻辑
-    if (e.code === 'Escape') {
-        // 关闭关于面板
-        if (aboutOverlay.classList.contains('show')) {
-            closeAbout();
-            return;
-        }
-        // 关闭设置或帮助
-        const isSettingsOpen = modalSettings.classList.contains('show');
-        const isHelpOpen = els.helpModal.classList.contains('show');
-        if (isSettingsOpen || isHelpOpen) {
-            modalSettings.classList.remove('show');
-            btnSettings.classList.remove('active');
-            els.helpModal.classList.remove('show');
-            els.btnHelp.classList.remove('active');
-            els.uiLayer.classList.remove('is-active'); // 移除强制展开类
-            return;
-        }
-        // 最后才是清除选中
-        if (state.selection.size > 0) {
-            state.selection.clear();
-            render();
-        }
-    }
-
-    if (e.code === 'Space') { e.preventDefault(); document.body.classList.add('mode-space'); }
-
-    // 🆕 Undo / Redo Shortcuts
-    if (isModifier(e) && e.code === 'KeyZ') {
-        e.preventDefault();
-        if (e.shiftKey) redo(); else undo();
-        return;
-    }
-    // Redo alternative (Ctrl+Y)
-    if (isModifier(e) && e.code === 'KeyY') {
-        e.preventDefault(); redo(); return;
-    }
-
-    // Actions that change state need pushHistory()
-    if (isModifier(e) && e.code === 'KeyG' && !e.shiftKey) { e.preventDefault(); pushHistory(); createGroup(); }
-    if (isModifier(e) && e.shiftKey && e.code === 'KeyG') { e.preventDefault(); pushHistory(); dissolveGroup(); }
-    if (isModifier(e) && e.code === 'KeyL') { e.preventDefault(); pushHistory(); toggleLink(); }
-    if (e.code === 'Delete' || e.code === 'Backspace') { e.preventDefault(); pushHistory(); deleteSelection(); }
-    if (e.code === 'Home') { e.preventDefault(); resetViewToCenter(true); }
-
-    if (isModifier(e) && e.code === 'KeyC') { e.preventDefault(); copySelection(); }
-    if (isModifier(e) && e.code === 'KeyV') { e.preventDefault(); pushHistory(); pasteClipboard(); }
-
-    // Nudge (also changes state)
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code) && !e.altKey) {
-        e.preventDefault();
-        // We probably don't want to save history on every pixel nudge, but for correctness:
-        // A better approach for nudge might be debouncing history save, but here we keep it simple.
-        pushHistory();
-        nudgeSelection(e.code);
-    }
-
-    if (e.altKey && !e.shiftKey && e.code.startsWith('Digit')) {
-        const num = parseInt(e.key);
-        if (num >= 1 && num <= 9 && num <= CONFIG.colors.length) {
-            e.preventDefault();
-            pushHistory();
-            colorSelection(CONFIG.colors[num - 1]);
-        }
-    }
-
-    if (e.ctrlKey && e.code === 'KeyS') { e.preventDefault(); exportJson(); }
-
-    if (e.altKey) {
-        pushHistory(); // Alignment changes state
-        switch (e.code) {
-            case 'KeyA': e.preventDefault(); alignSelection('left'); break;
-            case 'KeyD': e.preventDefault(); alignSelection('right'); break;
-            case 'KeyW': e.preventDefault(); alignSelection('top'); break;
-            case 'KeyS': e.preventDefault(); alignSelection('bottom'); break;
-            case 'KeyH': e.preventDefault(); e.shiftKey ? distributeSelection('h') : alignSelection('centerX'); break;
-            case 'KeyJ': e.preventDefault(); e.shiftKey ? distributeSelection('v') : alignSelection('centerY'); break;
-        }
-        if (e.key === '.') { // 对应 Alt + .
-            e.preventDefault();
-            smartAlignSelection();
-            return;
-        }
-    }
-
-    if (e.code === 'KeyQ') {
-        document.body.classList.add('spotlight-active');
-    }
-});
-
-window.addEventListener('keyup', e => {
-    keys[e.code] = false;
-    if (e.code === 'Space') document.body.classList.remove('mode-space');
-    if (e.code === 'KeyQ') {
-        document.body.classList.remove('spotlight-active');
-    }
-});
-
 function handleSelection(id, multi) {
     if (!multi) { if (!state.selection.has(id)) { state.selection.clear(); state.selection.add(id); } }
     else { if (state.selection.has(id)) state.selection.delete(id); else state.selection.add(id); }
@@ -970,6 +812,13 @@ initRender(els, state, {
 });
 initIO(render);
 initView(state, render);
+initShortcuts({
+    render,
+    undo,
+    redo,
+    handleNodeEdit,
+    exportJson
+});
 // ✨ 新的 UI 初始化 ✨
 initUI(els, state, {
     undo: undo,
