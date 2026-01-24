@@ -17,6 +17,8 @@ import {
     toggleLink, deleteSelection, nudgeSelection, colorSelection,
     alignSelection, distributeSelection
 } from './modules/actions.js';
+import { initIO, exportJson, processDangoFile, downloadImage, createShareLink } from './modules/io.js';
+import { initView, changeZoom, resetViewToCenter, cancelViewAnimation } from './modules/view.js';
 
 function undo() {
     undoState(render);
@@ -195,10 +197,7 @@ els.container.addEventListener('mousedown', e => {
         return;
     }
     if (e.target.isContentEditable) return;
-    if (viewAnimationId) {
-        cancelAnimationFrame(viewAnimationId);
-        viewAnimationId = null;
-    }
+    cancelViewAnimation();
     if (e.target.closest('.node') && e.detail === 2) return;
 
     if (e.button === 1 || (e.button === 0 && keys.Space)) {
@@ -342,23 +341,16 @@ els.container.addEventListener('mouseup', e => {
 });
 
 els.container.addEventListener('wheel', e => {
-    if (viewAnimationId) {
-        cancelAnimationFrame(viewAnimationId);
-        viewAnimationId = null;
-    }
+    cancelViewAnimation(); // 修复报错点
     e.preventDefault();
-    if (isModifier(e)) {
+    if (e.ctrlKey || e.metaKey || (state.settings.altAsCtrl && e.altKey)) {
         const factor = 1 + ((e.deltaY > 0 ? -1 : 1) * 0.1);
-        const worldX = (e.clientX - state.view.x) / state.view.scale;
-        const worldY = (e.clientY - state.view.y) / state.view.scale;
-        state.view.scale = Math.max(0.1, Math.min(5, state.view.scale * factor));
-        state.view.x = e.clientX - worldX * state.view.scale;
-        state.view.y = e.clientY - worldY * state.view.scale;
+        changeZoom(factor, e.clientX, e.clientY); // 使用 view.js 的统一函数
     } else {
         state.view.x -= e.deltaX;
         state.view.y -= e.deltaY;
+        render();
     }
-    render();
 }, { passive: false });
 
 // --- 移动端触屏支持 (Touch Events) ---
@@ -407,7 +399,7 @@ els.container.addEventListener('touchstart', e => {
     if (document.activeElement && document.activeElement !== document.body) {
         document.activeElement.blur();
     }
-
+    cancelViewAnimation();
     // --- 双指缩放 (Pinch) 检测 ---
     if (e.touches.length === 2) {
         e.preventDefault(); // 阻止浏览器默认缩放
@@ -513,7 +505,7 @@ els.container.addEventListener('touchmove', e => {
     if (mode === 'pan') {
         state.view.x = dragStart.viewX + (pos.x - dragStart.x);
         state.view.y = dragStart.viewY + (pos.y - dragStart.y);
-        if (viewAnimationId) { cancelAnimationFrame(viewAnimationId); viewAnimationId = null; }
+        cancelViewAnimation();
         render();
     } else if (mode === 'move') {
         const worldPos = screenToWorld(pos.x, pos.y, state.view);
@@ -783,23 +775,6 @@ window.addEventListener('keyup', e => {
     }
 });
 
-// Helpers
-function changeZoom(factor) {
-    // 默认以窗口中心缩放
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-    const worldPos = screenToWorld(centerX, centerY, state.view);
-
-    const oldScale = state.view.scale;
-    state.view.scale = Math.max(0.1, Math.min(5, oldScale * factor));
-    
-    // 补偿位移，实现以中心缩放
-    state.view.x = centerX - worldPos.x * state.view.scale;
-    state.view.y = centerY - worldPos.y * state.view.scale;
-    
-    render();
-}
-
 function handleSelection(id, multi) {
     if (!multi) { if (!state.selection.has(id)) { state.selection.clear(); state.selection.add(id); } }
     else { if (state.selection.has(id)) state.selection.delete(id); else state.selection.add(id); }
@@ -825,12 +800,6 @@ function updateSelectBox(x1, y1, x2, y2) {
     els.selectBox.style.width = r.w + 'px'; els.selectBox.style.height = r.h + 'px';
 }
 
-function exportJson() {
-    const data = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links }, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob); const a = document.createElement('a');
-    a.href = url; a.download = `dango-canvas_${getTimestamp()}.dango`;  a.click(); URL.revokeObjectURL(url);
-}
 
 function cloneSelectionInPlace() {
     // 1. 🔴 移除这里的 pushHistory()，交给 mouseup 统一处理
@@ -881,47 +850,6 @@ function cloneSelectionInPlace() {
     state.selection = newSelection;
 }
 
-// --- 新增：通用文件处理逻辑 ---
-function processDangoFile(file) {
-    if (!file) return;
-    
-    // 检查文件后缀（非强制，但更安全）
-    if (!file.name.endsWith('.dango') && !file.name.endsWith('.json')) {
-        showToast(getTexts().alert_file_err);
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-        try {
-            const data = JSON.parse(ev.target.result);
-            
-            // 备份当前数据以供撤销
-            let oldSnapshot = null;
-            if (state.nodes.length > 0) {
-                oldSnapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links] };
-            }
-            
-            pushHistory();
-            
-            // 加载新数据
-            state.nodes = data.nodes || [];
-            state.groups = data.groups || [];
-            state.links = data.links || [];
-            state.selection.clear();
-            
-            render();
-            // 🍞 成功提示
-            showToast(getTexts().toast_import_success, oldSnapshot);
-        }
-        catch (err) {
-            console.error(err);
-            showToast(getTexts().alert_file_err);
-        }
-    };
-    reader.readAsText(file);
-}
-
 // document.getElementById('btn-export').onclick = exportJson;
 document.getElementById('file-input').onchange = (e) => {
     processDangoFile(e.target.files[0]);
@@ -932,148 +860,6 @@ document.getElementById('file-input').onchange = (e) => {
 document.getElementById('btn-import-main').onclick = () => {
     document.getElementById('file-input').click();
 };
-
-
-// 辅助函数：生成 SVG 字符串 (提取自之前的逻辑)
-function getSvgString() {
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    const elements = [...state.nodes, ...state.groups];
-    if (elements.length === 0) return null;
-
-    elements.forEach(el => {
-        minX = Math.min(minX, el.x); minY = Math.min(minY, el.y);
-        maxX = Math.max(maxX, el.x + (el.w || 100)); maxY = Math.max(maxY, el.y + (el.h || 40));
-    });
-
-    const padding = 80;
-    const width = maxX - minX + padding * 2;
-    const height = maxY - minY + padding * 2;
-    const offsetX = -minX + padding;
-    const offsetY = -minY + padding;
-
-    const bodyStyle = getComputedStyle(document.body);
-    const bgColor = bodyStyle.backgroundColor;
-    const dotColor = bodyStyle.getPropertyValue('--dot-color').trim() || '#cbd5e1';
-    const groupBorderColor = bodyStyle.getPropertyValue('--group-border').trim();
-    const groupBgColor = bodyStyle.getPropertyValue('--group-bg').trim();
-    const linkColor = bodyStyle.getPropertyValue('--link-color').trim();
-    const isHandDrawn = state.settings.handDrawn;
-    const fontFamily = isHandDrawn ? "'Architects Daughter', 'LXGW WenKai Mono TC', cursive" : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    const nodePaddingX = 20;
-
-    let defsContent = `<style>@import url('https://fonts.googleapis.com/css2?family=Architects+Daughter&amp;family=LXGW+WenKai+Mono+TC&amp;display=swap'); .node-text { font-family: ${fontFamily}; font-size: 14px; font-weight: 500; }</style><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.5" fill="${dotColor}" /></pattern>`;
-    state.nodes.forEach(n => {
-        defsContent += `<clipPath id="clip-${n.id}"><rect x="${n.x + offsetX + nodePaddingX}" y="${n.y + offsetY}" width="${n.w - nodePaddingX * 2}" height="${n.h}" /></clipPath>`;
-    });
-
-    let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs>${defsContent}</defs><rect width="100%" height="100%" fill="${bgColor}"/>`;
-    if (!state.settings.hideGrid) svgContent += `<rect width="100%" height="100%" fill="url(#grid)"/>`;
-
-    state.groups.forEach(g => {
-        svgContent += `<rect x="${g.x + offsetX}" y="${g.y + offsetY}" width="${g.w}" height="${g.h}" rx="20" ry="20" fill="${groupBgColor}" stroke="${groupBorderColor}" stroke-width="2" stroke-dasharray="5,5" />`;
-    });
-
-    state.links.forEach(l => {
-        const n1 = state.nodes.find(n => n.id === l.sourceId), n2 = state.nodes.find(n => n.id === l.targetId);
-        if (n1 && n2) {
-            const c1 = { x: n1.x + (n1.w || 0) / 2 + offsetX, y: n1.y + (n1.h || 0) / 2 + offsetY }, c2 = { x: n2.x + (n2.w || 0) / 2 + offsetX, y: n2.y + (n2.h || 0) / 2 + offsetY };
-            svgContent += `<line x1="${c1.x}" y1="${c1.y}" x2="${c2.x}" y2="${c2.y}" stroke="${linkColor}" stroke-width="2" opacity="0.5" />`;
-        }
-    });
-
-    state.nodes.forEach(n => {
-        const el = document.querySelector(`.node[data-id="${n.id}"]`);
-        if (!el) return;
-        const style = getComputedStyle(el), nodeBg = style.backgroundColor, nodeStroke = style.borderColor, nodeTextColor = style.color, isLink = isUrl(n.text), rx = isHandDrawn ? 18 : 12;
-        let textX = isLink ? n.x + offsetX + nodePaddingX : n.x + n.w / 2 + offsetX;
-        let textAnchor = isLink ? "start" : "middle";
-
-        let nodeMarkup = `<rect x="${n.x + offsetX}" y="${n.y + offsetY}" width="${n.w}" height="${n.h}" rx="${rx}" ry="${rx}" fill="${nodeBg}" stroke="${nodeStroke}" stroke-width="${isLink ? 1.5 : 1}" /><text x="${textX}" y="${n.y + n.h / 2 + offsetY}" class="node-text" clip-path="url(#clip-${n.id})" dominant-baseline="central" text-anchor="${textAnchor}" fill="${nodeTextColor}">${escapeHtml(n.text)}</text>`;
-        
-        if (isLink) {
-            let fullUrl = n.text.trim(); if (!fullUrl.startsWith('http')) fullUrl = 'https://' + fullUrl;
-            const lineY = n.y + n.h / 2 + offsetY + 8, lineX1 = n.x + offsetX + nodePaddingX, lineX2 = n.x + offsetX + n.w - nodePaddingX;
-            nodeMarkup = `<a xlink:href="${escapeHtml(fullUrl)}" target="_blank"><g>${nodeMarkup}<line x1="${lineX1}" y1="${lineY}" x2="${lineX2}" y2="${lineY}" stroke="${nodeTextColor}" stroke-width="1" opacity="0.4" /></g></a>`;
-        }
-        svgContent += nodeMarkup;
-    });
-
-    return { html: svgContent + `</svg>`, width, height };
-}
-
-// 核心功能：统一导出图片函数
-async function downloadImage() {
-    const svgData = getSvgString();
-    if (!svgData) return;
-
-    // 1. 创建 Canvas
-    const canvas = document.createElement('canvas');
-    const scale = 3; // 强制 3x 高清
-    canvas.width = svgData.width * scale;
-    canvas.height = svgData.height * scale;
-    const ctx = canvas.getContext('2d');
-
-    const img = new Image();
-    const svgBlob = new Blob([svgData.html], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
-
-    img.onload = async () => {
-        // 绘制高清图
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.scale(scale, scale);
-        ctx.drawImage(img, 0, 0);
-        
-        if (state.settings.copyMode) {
-            // 模式 A: 复制到剪贴板
-            canvas.toBlob(async (blob) => {
-                try {
-                    const item = new ClipboardItem({ "image/png": blob });
-                    await navigator.clipboard.write([item]);
-                    showToast(getTexts().toast_copy_success);
-                } catch (err) {
-                    console.error(err);
-                    showToast(getTexts().toast_copy_fail);
-                }
-                URL.revokeObjectURL(url);
-            }, 'image/png');
-        } else {
-            // 模式 B: 下载文件
-            canvas.toBlob((blob) => {
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `dango_${getTimestamp()}.png`;
-                a.click();
-                URL.revokeObjectURL(url);
-            }, 'image/png');
-        }
-    };
-    img.src = url;
-}
-
-
-function createShareLink() {
-    const packed = packData();
-    const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(packed));
-    
-    // 获取基础路径 (去除 hash)
-    const baseUrl = window.location.origin + window.location.pathname;
-    
-    if (state.settings.copyAsEmbed) {
-        // 生成嵌入代码模式
-        const embedUrl = `${baseUrl}?embed=true#${compressed}`;
-        const iframeCode = `<iframe src="${embedUrl}" style="width: 100%; height: 500px; border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" allow="clipboard-write"></iframe>`;
-        
-        navigator.clipboard.writeText(iframeCode).then(() => {
-            showToast(getTexts().toast_copy_embed_success);
-        });
-    } else {
-        // 普通链接模式
-        const url = baseUrl + '#' + compressed;
-        navigator.clipboard.writeText(url).then(() => {
-            showToast(getTexts().toast_copy_success);
-        });
-    }
-}
 
 state.settings.handDrawn = localStorage.getItem('cc-hand-drawn') === 'true';
 
@@ -1157,59 +943,6 @@ function loadFromUrl() {
 }
 
 
-function resetViewToCenter(animated = true) {
-    let targetX, targetY, targetScale = 1.2;
-    targetX = window.innerWidth / 2;
-    targetY = window.innerHeight / 2;
-
-    if (animated) {
-        animateView(targetX, targetY, targetScale);
-    } else {
-        state.view.x = targetX;
-        state.view.y = targetY;
-        state.view.scale = targetScale;
-        render();
-    }
-}
-
-// --- 视图动画系统 ---
-let viewAnimationId = null;
-
-function animateView(targetX, targetY, targetScale, duration = 400) {
-    // 如果之前有动画在跑，先停掉
-    if (viewAnimationId) cancelAnimationFrame(viewAnimationId);
-
-    const startX = state.view.x;
-    const startY = state.view.y;
-    const startScale = state.view.scale;
-    const startTime = performance.now();
-
-    function step(now) {
-        const elapsed = now - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        
-        if (progress < 1) {
-            // 动画运行中
-            const ease = 1 - Math.pow(2, -10 * progress);
-            state.view.x = startX + (targetX - startX) * ease;
-            state.view.y = startY + (targetY - startY) * ease;
-            state.view.scale = startScale + (targetScale - startScale) * ease;
-            render();
-            viewAnimationId = requestAnimationFrame(step);
-        } else {
-            // ✨ 最后一帧：强制精准赋值，消除 0.1% 的数学误差
-            state.view.x = targetX;
-            state.view.y = targetY;
-            state.view.scale = targetScale;
-            render();
-            viewAnimationId = null; // 动画彻底结束
-        }
-    }
-
-
-    viewAnimationId = requestAnimationFrame(step);
-}
-
 function updateOpenFullLink() {
     if (!isEmbed) return;
     const btn = document.getElementById('btn-open-full');
@@ -1235,7 +968,8 @@ initRender(els, state, {
     saveData: saveData,
     updateOpenFullLink: updateOpenFullLink,
 });
-
+initIO(render);
+initView(state, render);
 // ✨ 新的 UI 初始化 ✨
 initUI(els, state, {
     undo: undo,
