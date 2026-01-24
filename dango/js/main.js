@@ -10,6 +10,13 @@ import {
     loadData, saveData, unpackData, packData, MAX_HISTORY
 } from './modules/state.js';
 import { initRender, render } from './modules/render.js';
+import { animateNodesTo, smartAlignSelection } from './modules/animation.js';
+import { 
+    createNodesFromInput as createNodesAction, // 使用别名以防命名冲突
+    clearCanvas, copySelection, pasteClipboard, createGroup, dissolveGroup,
+    toggleLink, deleteSelection, nudgeSelection, colorSelection,
+    alignSelection, distributeSelection
+} from './modules/actions.js';
 
 function undo() {
     undoState(render);
@@ -17,6 +24,10 @@ function undo() {
 
 function redo() {
     redoState(render);
+}
+
+function createNodesFromInput() {
+    createNodesAction(els.input.value, els);
 }
 
 // 按 ESC 关闭所有弹窗
@@ -30,74 +41,17 @@ window.addEventListener('keydown', e => {
     }
 });
 
-function createNodesFromInput() {
-    const text = els.input.value;
-    if (!text.trim()) return;
 
-    pushHistory();
-
-    const centerX = (window.innerWidth / 2 - state.view.x) / state.view.scale;
-    const centerY = (window.innerHeight / 2 - state.view.y) / state.view.scale;
-    const spacingX = 140;
-    const spacingY = 80;
-
-    function parsePhrases(input) {
-        const regex = /"([^"]*)"|'([^']*)'|“([^”]*)”|‘([^’]*)’|([^\s,，\n]+)/g;
-        const result = [];
-        let match;
-        while ((match = regex.exec(input)) !== null) {
-            const phrase = match[1] || match[2] || match[3] || match[4] || match[5];
-            if (phrase && phrase.trim()) result.push(phrase.trim());
+// 按 ESC 关闭所有弹窗
+window.addEventListener('keydown', e => {
+    // ... 原有代码 ...
+    if (e.code === 'Escape') {
+        if (state.selection.size > 0) {
+            state.selection.clear();
+            render();
         }
-        return result;
     }
-
-    let nodesToCreate = [];
-
-    if (state.settings.preciseLayout) {
-        const lines = text.split('\n');
-        lines.forEach((line, rowIndex) => {
-            const phrases = parsePhrases(line);
-            phrases.forEach((phrase, colIndex) => {
-                nodesToCreate.push({ text: phrase, row: rowIndex, col: colIndex });
-            });
-        });
-
-        if (nodesToCreate.length === 0) return;
-        const maxRow = Math.max(...nodesToCreate.map(n => n.row));
-        const maxCol = Math.max(...nodesToCreate.map(n => n.col));
-        const startX = centerX - (maxCol * spacingX) / 2 - 50;
-        const startY = centerY - (maxRow * spacingY) / 2 - 20;
-
-        nodesToCreate.forEach(n => {
-            state.nodes.push({
-                id: uid(), text: n.text,
-                x: startX + n.col * spacingX, y: startY + n.row * spacingY,
-                w: 0, h: 0, color: 'c-white'
-            });
-        });
-    } else {
-        const phrases = parsePhrases(text); 
-        const colCount = Math.min(phrases.length, 5);
-        const rowCount = Math.ceil(phrases.length / 5);
-        const startX = centerX - ((colCount - 1) * spacingX) / 2 - 50;
-        const startY = centerY - ((rowCount - 1) * spacingY) / 2 - 20;
-
-        phrases.forEach((str, index) => {
-            state.nodes.push({
-                id: uid(), text: str,
-                x: startX + (index % 5) * spacingX, y: startY + Math.floor(index / 5) * spacingY,
-                w: 0, h: 0, color: 'c-white'
-            });
-        });
-    }
-
-    els.input.value = '';
-    render();
-}
-
-
-
+});
 
 
 document.getElementById('btn-lang').onclick = (e) => {
@@ -113,123 +67,6 @@ function isModifier(e) {
 }
 
 
-// --- 节点多路动画系统 ---
-let nodeAnimationId = null;
-
-function animateNodesTo(targets, duration = 300) {
-    if (nodeAnimationId) cancelAnimationFrame(nodeAnimationId);
-    
-    const startTime = performance.now();
-    const startPositions = new Map();
-    
-    targets.forEach(({ id }) => {
-        const node = state.nodes.find(n => n.id === id);
-        if (node) {
-            startPositions.set(id, { x: node.x, y: node.y });
-        }
-    });
-
-    function step(now) {
-        const elapsed = now - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const ease = 1 - Math.pow(1 - progress, 3); // OutCubic 效果更轻盈
-
-        targets.forEach(({ id, x, y }) => {
-            const node = state.nodes.find(n => n.id === id);
-            const start = startPositions.get(id);
-            if (node && start) {
-                node.x = start.x + (x - start.x) * ease;
-                node.y = start.y + (y - start.y) * ease;
-            }
-        });
-
-        render();
-
-        if (progress < 1) {
-            nodeAnimationId = requestAnimationFrame(step);
-        } else {
-            nodeAnimationId = null;
-            saveData();
-        }
-    }
-    nodeAnimationId = requestAnimationFrame(step);
-}
-
-function smartAlignSelection() {
-    const selectedNodes = state.nodes.filter(n => state.selection.has(n.id));
-    if (selectedNodes.length < 2) return;
-
-    pushHistory();
-
-    const rowThreshold = 60; // 这里的高度差认为是同一行
-    const standardGapX = 40; // 节点间的标准间距
-    const standardGapY = 40; 
-
-    // 1. 识别行：按 Y 坐标排序并聚类
-    const sortedByY = [...selectedNodes].sort((a, b) => a.y - b.y);
-    const rows = [];
-    if (sortedByY.length > 0) {
-        let currentRow = [sortedByY[0]];
-        for (let i = 1; i < sortedByY.length; i++) {
-            if (sortedByY[i].y - sortedByY[i - 1].y < rowThreshold) {
-                currentRow.push(sortedByY[i]);
-            } else {
-                rows.push(currentRow);
-                currentRow = [sortedByY[i]];
-            }
-        }
-        rows.push(currentRow);
-    }
-
-    // 2. 计算每一行的目标位置
-    const targets = [];
-    let currentY = rows[0][0].y; // 以后续计算的平均值修正
-
-    // 计算整体重心，用于最后偏移校正
-    const originalCenter = {
-        x: selectedNodes.reduce((sum, n) => sum + n.x + n.w/2, 0) / selectedNodes.length,
-        y: selectedNodes.reduce((sum, n) => sum + n.y + n.h/2, 0) / selectedNodes.length
-    };
-
-    rows.forEach((row) => {
-        // 行内居中对齐：计算该行所有节点的平均 Y
-        const avgY = row.reduce((sum, n) => sum + n.y, 0) / row.length;
-        
-        // 行内按 X 排序
-        const sortedInRow = row.sort((a, b) => a.x - b.x);
-        
-        // 计算行内总宽度，用于分配位置
-        let currentX = sortedInRow[0].x; 
-        
-        sortedInRow.forEach((node, index) => {
-            targets.push({
-                id: node.id,
-                x: currentX,
-                y: avgY
-            });
-            // 累加：当前节点宽度 + 间距
-            currentX += (node.w || 80) + standardGapX;
-        });
-    });
-
-    // 3. 整体修正：保持重心不变，避免对齐后“飞走”
-    const targetCenter = {
-        x: targets.reduce((sum, n) => sum + n.x + (selectedNodes.find(sn=>sn.id===n.id).w||80)/2, 0) / targets.length,
-        y: targets.reduce((sum, n) => sum + n.y + (selectedNodes.find(sn=>sn.id===n.id).h||40)/2, 0) / targets.length
-    };
-    
-    const offsetX = originalCenter.x - targetCenter.x;
-    const offsetY = originalCenter.y - targetCenter.y;
-
-    targets.forEach(t => {
-        t.x += offsetX;
-        t.y += offsetY;
-    });
-
-    // 4. 执行动画
-    animateNodesTo(targets);
-}
-
 // --- DOM Refs ---
 const els = {
     container: document.getElementById('canvas-container'),
@@ -244,6 +81,7 @@ const els = {
     uiLayer: document.getElementById('ui-layer'),
     spotlight: document.getElementById('spotlight-layer'),
 };
+
 
 
 els.nodesLayer.addEventListener('click', e => {
@@ -986,178 +824,6 @@ function updateSelectBox(x1, y1, x2, y2) {
     els.selectBox.style.left = r.x + 'px'; els.selectBox.style.top = r.y + 'px';
     els.selectBox.style.width = r.w + 'px'; els.selectBox.style.height = r.h + 'px';
 }
-
-// --- Logic Actions ---
-
-function clearCanvas() {
-    // 💾 捕捉快照
-    const snapshot = { nodes: [...state.nodes], groups: [...state.groups], links: [...state.links] };
-    pushHistory();
-    state.nodes = []; state.groups = []; state.links = []; state.selection.clear();
-    render();
-    // 🍞 弹出带“救命稻草”的 Toast
-    showToast(getTexts().toast_cleared, snapshot);
-}
-
-function copySelection() {
-    const selNodes = state.nodes.filter(n => state.selection.has(n.id));
-    const selGroups = state.groups.filter(g => state.selection.has(g.id));
-    if (selNodes.length > 0 || selGroups.length > 0) {
-        state.clipboard = JSON.parse(JSON.stringify({ nodes: selNodes, groups: selGroups }));
-    }
-}
-function pasteClipboard() {
-    if (!state.clipboard || (!state.clipboard.nodes.length && !state.clipboard.groups.length)) return;
-    state.selection.clear();
-    const mapping = {};
-    state.clipboard.nodes.forEach(n => {
-        const newId = uid(); mapping[n.id] = newId;
-        const newNode = { ...n, id: newId, x: n.x + 20, y: n.y + 20 };
-        state.nodes.push(newNode); state.selection.add(newId);
-    });
-    state.clipboard.groups.forEach(g => {
-        const newId = uid();
-        const newGroup = { ...g, id: newId, x: g.x + 20, y: g.y + 20 };
-        newGroup.memberIds = g.memberIds.map(mid => mapping[mid] || mid);
-        state.groups.push(newGroup); state.selection.add(newId);
-    });
-    render();
-}
-function createGroup() {
-    const selectedNodes = state.nodes.filter(n => state.selection.has(n.id));
-    if (selectedNodes.length === 0) return;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    selectedNodes.forEach(n => {
-        minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
-        maxX = Math.max(maxX, n.x + (n.w || 0)); maxY = Math.max(maxY, n.y + (n.h || 0));
-    });
-    const padding = 20;
-    const group = { id: uid(), x: minX - padding, y: minY - padding, w: maxX - minX + padding * 2, h: maxY - minY + padding * 2, memberIds: selectedNodes.map(n => n.id) };
-    state.groups.push(group); state.selection.clear(); state.selection.add(group.id); render();
-}
-function dissolveGroup() {
-    const toRemove = [];
-    state.selection.forEach(id => { const idx = state.groups.findIndex(g => g.id === id); if (idx !== -1) toRemove.push(idx); });
-    toRemove.sort((a, b) => b - a).forEach(idx => state.groups.splice(idx, 1));
-    if (toRemove.length > 0) { state.selection.clear(); render(); }
-}
-function toggleLink() {
-    const sel = Array.from(state.selection);
-    const nodes = sel.map(id => state.nodes.find(n => n.id === id)).filter(n => n);
-    if (nodes.length !== 2) return;
-    
-    // 为了逻辑稳定，我们不依赖选择顺序，而是固定一个为 source，一个为 target
-    const [n1, n2] = nodes;
-
-    const existingLinkIndex = state.links.findIndex(l => 
-        (l.sourceId === n1.id && l.targetId === n2.id) || 
-        (l.sourceId === n2.id && l.targetId === n1.id)
-    );
-
-    if (existingLinkIndex !== -1) {
-        // --- 链接已存在，进入状态循环 ---
-        const link = state.links[existingLinkIndex];
-        
-        // 确保 sourceId 和 targetId 与我们当前获取的 n1, n2 一致，方便判断
-        const isReversed = link.sourceId === n2.id;
-
-        switch (link.direction) {
-            case 'none':
-                // 状态 1 -> 2: 无方向 -> 指向 n2
-                link.direction = isReversed ? 'source' : 'target';
-                break;
-            
-            case 'target':
-                // 状态 2 -> 3: 指向 target -> 指向 source (或反向)
-                link.direction = isReversed ? 'none' : 'source'; // 这里逻辑稍微复杂
-                if(isReversed) link.direction = 'none'; // 如果反了，直接回到 none
-                else link.direction = 'source';
-                break;
-            
-            case 'source':
-                // 状态 3 -> 4: 指向 source -> 删除
-                state.links.splice(existingLinkIndex, 1);
-                break;
-
-            default: // 兼容旧数据
-                 link.direction = 'target';
-                 break;
-        }
-
-    } else {
-        // --- 链接不存在，创建它 (状态 0 -> 1) ---
-        state.links.push({ 
-            id: uid(), 
-            sourceId: n1.id, 
-            targetId: n2.id,
-            direction: 'none' // 初始状态：无方向
-        });
-    }
-    
-    render();
-}
-function deleteSelection() {
-    const sel = state.selection;
-    state.nodes = state.nodes.filter(n => !sel.has(n.id));
-    state.groups = state.groups.filter(g => !sel.has(g.id));
-    state.links = state.links.filter(l => !sel.has(l.sourceId) && !sel.has(l.targetId));
-    state.groups.forEach(g => { g.memberIds = g.memberIds.filter(mid => state.nodes.find(n => n.id === mid)); });
-    state.selection.clear(); render();
-}
-function nudgeSelection(key) {
-    const step = 10; let dx = 0, dy = 0;
-    if (key === 'ArrowUp') dy = -step; if (key === 'ArrowDown') dy = step;
-    if (key === 'ArrowLeft') dx = -step; if (key === 'ArrowRight') dx = step;
-    state.selection.forEach(id => {
-        const item = findItem(id);
-        if (item) setItemPos(item, item.x + dx, item.y + dy);
-    });
-    render();
-}
-function colorSelection(colorClass) { state.nodes.forEach(n => { if (state.selection.has(n.id)) n.color = colorClass; }); render(); }
-function setItemPos(item, newX, newY) {
-    const dx = newX - item.x; const dy = newY - item.y;
-    item.x = newX; item.y = newY;
-    if (!item.text && item.memberIds) {
-        item.memberIds.forEach(mid => { const m = state.nodes.find(n => n.id === mid); if (m) { m.x += dx; m.y += dy; } });
-    }
-}
-function alignSelection(type) {
-    const items = [...state.selection].map(id => findItem(id)).filter(i => i);
-    if (items.length < 2) return;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    items.forEach(i => {
-        minX = Math.min(minX, i.x); minY = Math.min(minY, i.y);
-        maxX = Math.max(maxX, i.x + (i.w || 0)); maxY = Math.max(maxY, i.y + (i.h || 0));
-    });
-    const centerX = minX + (maxX - minX) / 2; const centerY = minY + (maxY - minY) / 2;
-    items.forEach(i => {
-        const w = i.w || 0; const h = i.h || 0; let nx = i.x, ny = i.y;
-        if (type === 'left') nx = minX; else if (type === 'right') nx = maxX - w; else if (type === 'centerX') nx = centerX - w / 2;
-        else if (type === 'top') ny = minY; else if (type === 'bottom') ny = maxY - h; else if (type === 'centerY') ny = centerY - h / 2;
-        setItemPos(i, nx, ny);
-    });
-    render();
-}
-function distributeSelection(axis) {
-    const items = [...state.selection].map(id => findItem(id)).filter(i => i);
-    if (items.length < 3) return;
-    if (axis === 'h') {
-        items.sort((a, b) => a.x - b.x);
-        const start = items[0].x; const end = items[items.length - 1].x + (items[items.length - 1].w || 0);
-        const totalW = items.reduce((s, i) => s + (i.w || 0), 0);
-        const gap = (end - start - totalW) / (items.length - 1);
-        let cx = start; items.forEach(i => { setItemPos(i, cx, i.y); cx += (i.w || 0) + gap; });
-    } else {
-        items.sort((a, b) => a.y - b.y);
-        const start = items[0].y; const end = items[items.length - 1].y + (items[items.length - 1].h || 0);
-        const totalH = items.reduce((s, i) => s + (i.h || 0), 0);
-        const gap = (end - start - totalH) / (items.length - 1);
-        let cy = start; items.forEach(i => { setItemPos(i, i.x, cy); cy += (i.h || 0) + gap; });
-    }
-    render();
-}
-
 
 function exportJson() {
     const data = JSON.stringify({ nodes: state.nodes, groups: state.groups, links: state.links }, null, 2);
