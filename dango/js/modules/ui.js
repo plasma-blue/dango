@@ -39,6 +39,26 @@ export function applySettings(currentState) {
     document.body.classList.toggle('hide-grid', s.settings.hideGrid);
 }
 
+// --- 手写风格 ---
+function loadHandDrawnFonts() {
+    if (document.getElementById('hand-drawn-fonts')) return;
+    const link = document.createElement('link');
+    link.id = 'hand-drawn-fonts';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Architects+Daughter&family=LXGW+WenKai+Mono+TC&display=block';
+    document.head.appendChild(link);
+}
+
+export function applyHandDrawnStyle() {
+    if (!appState) return;
+    if (appState.settings.handDrawn) {
+        loadHandDrawnFonts();
+        document.body.classList.add('hand-drawn-style');
+    } else {
+        document.body.classList.remove('hand-drawn-style');
+    }
+}
+
 // --- 节日 Logo ---
 function updateSeasonalLogo() {
     const now = new Date();
@@ -142,6 +162,15 @@ export function initUI(_els, _state, _callbacks) {
         updateTheme(themeBtn);
         e.currentTarget.blur();
     };
+
+    // 2.5 添加按钮
+    const btnAdd = document.getElementById('btn-add');
+    if (btnAdd && callbacks.createNodesFromInput) {
+        btnAdd.onclick = (e) => {
+            e.stopPropagation();
+            callbacks.createNodesFromInput();
+        };
+    }
 
     // 3. 设置面板
     const btnSettings = document.getElementById('btn-settings');

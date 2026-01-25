@@ -1,7 +1,7 @@
 // modules/io.js
 import { state, pushHistory, packData, unpackData } from './state.js';
 import { getTexts } from './i18n.js';
-import { showToast } from './ui.js';
+import { showToast, applySettings } from './ui.js';
 import { getTimestamp, isUrl, escapeHtml } from './utils.js';
 
 // 将 main.js 中的 exportJson, downloadImage, createShareLink, processDangoFile, getSvgString 移入此处
@@ -10,6 +10,13 @@ let renderRef = null;
 
 export function initIO(render) {
     renderRef = render;
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) {
+        fileInput.onchange = (e) => {
+            processDangoFile(e.target.files[0]);
+            e.target.value = '';
+        };
+    }
 }
 
 export function exportJson() {
@@ -100,6 +107,49 @@ export function createShareLink() {
     navigator.clipboard.writeText(url).then(() => {
         showToast(state.settings.copyAsEmbed ? getTexts().toast_copy_embed_success : getTexts().toast_copy_success);
     });
+}
+
+export function updateOpenFullLink() {
+    if (!state.isEmbed) return;
+    const btn = document.getElementById('btn-open-full');
+    if (!btn) return;
+    const packed = packData();
+    const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(packed));
+    const baseUrl = window.location.origin + window.location.pathname;
+    btn.href = baseUrl + '#' + compressed;
+}
+
+export function loadFromUrl() {
+    const hash = window.location.hash.substring(1);
+    if (!hash) return false;
+    try {
+        const decompressed = LZString.decompressFromEncodedURIComponent(hash);
+        if (!decompressed) return false;
+        const dataRaw = JSON.parse(decompressed);
+        const data = Array.isArray(dataRaw) ? unpackData(dataRaw) : dataRaw;
+        const oldSnapshot = {
+            nodes: [...state.nodes],
+            groups: [...state.groups],
+            links: [...state.links],
+            selection: Array.from(state.selection)
+        };
+        pushHistory(JSON.stringify(oldSnapshot));
+        state.nodes = data.nodes || [];
+        state.groups = data.groups || [];
+        state.links = data.links || [];
+        state.selection.clear();
+        if (data.settings) Object.assign(state.settings, data.settings);
+        renderRef();
+        applySettings(state);
+        if (!state.isEmbed) {
+            showToast(getTexts().toast_imported, oldSnapshot);
+            window.history.replaceState(null, null, window.location.pathname);
+        }
+        return true;
+    } catch (e) {
+        console.error("Import failed:", e);
+        return false;
+    }
 }
 
 function getSvgString() {
