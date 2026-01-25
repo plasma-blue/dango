@@ -193,26 +193,6 @@
         </div>
         <div id="world">
             <svg id="connections-layer" class="connections">
-                <defs>
-                    <marker 
-                        id="arrowhead" 
-                        viewBox="0 0 10 10" 
-                        refX="8" <!-- ✨ 微调 refX，让 V 形的尖端贴合 -->
-                        refY="5" 
-                        markerWidth="8" <!-- ✨ 稍微增大 marker 尺寸，容纳更舒展的 V 形 -->
-                        markerHeight="8" 
-                        orient="auto-start-reverse">
-                        <!-- ✨✨✨ 核心修改：用描边路径替换填充路径 ✨✨✨ -->
-                        <path 
-                            d="M 0 0 L 8 5 L 0 10" 
-                            stroke="currentColor" 
-                            stroke-width="1.5" 
-                            fill="none" 
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        ></path>
-                    </marker>
-                </defs>
             </svg>
             <div id="groups-layer"></div>
             <div id="nodes-layer"></div>
