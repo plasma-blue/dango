@@ -1,10 +1,10 @@
 // modules/render.js
 
 import { isUrl, getEdgeIntersection } from './utils.js';
+import { els } from './dom.js';
 
 // --- 模块内部变量 ---
 let appState;
-let els;
 let callbacks;
 
 function syncDomElements(dataArray, parent, className, renderFn) {
@@ -148,8 +148,7 @@ export function render() {
 /**
  * 初始化渲染模块
  */
-export function initRender(_els, _state, _callbacks) {
-    els = _els;
+export function initRender(_state, _callbacks) {
     appState = _state;
     callbacks = _callbacks;
 }

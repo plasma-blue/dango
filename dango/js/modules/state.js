@@ -86,6 +86,13 @@ export function redo(renderCallback) {
 // --- Data Persistence ---
 const LS_KEY = 'cc-canvas-data';
 
+export function initializeData(loadFromUrlFn) {
+    if (loadFromUrlFn && loadFromUrlFn()) {
+        return;
+    }
+    loadData();
+}
+
 export function loadData() {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {

@@ -4,6 +4,7 @@ import { render } from './render.js';
 import { uid, isUrl } from './utils.js';
 import { showToast } from './ui.js';
 import { getTexts } from './i18n.js';
+import { els } from './dom.js';
 
 // --- Helpers (内部函数，不导出) ---
 function findItem(id) {
@@ -29,8 +30,9 @@ function setItemPos(item, newX, newY) {
 
 // --- Exported Actions ---
 
-export function createNodesFromInput(text, els) {
-    if (!text.trim()) return;
+export function createNodesFromInput(text) {
+    const inputText = text || els.input.value;
+    if (!inputText || !inputText.trim()) return;
 
     pushHistory();
 
@@ -53,7 +55,7 @@ export function createNodesFromInput(text, els) {
     let nodesToCreate = [];
 
     if (state.settings.preciseLayout) {
-        const lines = text.split('\n');
+        const lines = inputText.split('\n');
         lines.forEach((line, rowIndex) => {
             const phrases = parsePhrases(line);
             phrases.forEach((phrase, colIndex) => {
@@ -75,7 +77,7 @@ export function createNodesFromInput(text, els) {
             });
         });
     } else {
-        const phrases = parsePhrases(text);
+        const phrases = parsePhrases(inputText);
         if (phrases.length === 0) return;
         const colCount = Math.min(phrases.length, 5);
         const rowCount = Math.ceil(phrases.length / 5);

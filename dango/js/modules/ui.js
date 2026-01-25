@@ -1,11 +1,12 @@
 // modules/ui.js
 
-import { getTexts } from './i18n.js';
+import { getTexts, toggleLang, updateI18n } from './i18n.js';
 import { downloadBlob, getTimestamp } from './utils.js';
+import { processDangoFile } from './io.js';
+import { els } from './dom.js';
 
 // --- 模块内部变量 ---
 let appState; // 用于访问 state.settings 等
-let els; // 用于访问 DOM 元素
 let callbacks; // 用于执行 main.js 中的动作，如 undo
 
 const ICON_MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
@@ -116,8 +117,7 @@ export function showToast(message, safetySnapshot = null) {
 
 
 // --- 统一初始化函数 ---
-export function initUI(_els, _state, _callbacks) {
-    els = _els;
+export function initUI(_state, _callbacks) {
     appState = _state;
     callbacks = _callbacks;
 
@@ -277,4 +277,19 @@ export function initUI(_els, _state, _callbacks) {
     document.getElementById('opt-link').onclick = (e) => { e.stopPropagation(); callbacks.createShareLink(); resetActionStack(); };
     window.addEventListener('click', () => { if (actionStack.classList.contains('is-exporting')) resetActionStack(); });
     document.getElementById('btn-import-main').onclick = () => { document.getElementById('file-input').click(); };
+
+    // 10. 语言切换
+    document.getElementById('btn-lang').onclick = (e) => {
+        toggleLang();
+        updateI18n();
+        e.currentTarget.blur();
+    };
+
+    // 11. 文件导入
+    document.getElementById('file-input').onchange = (e) => {
+        if (e.target.files && e.target.files[0]) {
+            processDangoFile(e.target.files[0]);
+        }
+        e.target.value = ''; 
+    };
 }

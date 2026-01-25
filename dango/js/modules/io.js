@@ -10,13 +10,6 @@ let renderRef = null;
 
 export function initIO(render) {
     renderRef = render;
-    const fileInput = document.getElementById('file-input');
-    if (fileInput) {
-        fileInput.onchange = (e) => {
-            processDangoFile(e.target.files[0]);
-            e.target.value = '';
-        };
-    }
 }
 
 export function exportJson() {

@@ -5,8 +5,7 @@ import { uid, screenToWorld, getStandardRect, isIntersect } from './utils.js';
 import { changeZoom, cancelViewAnimation } from './view.js';
 import { keys, isModifier } from './shortcuts.js';
 import { processDangoFile } from './io.js';
-
-let els = null;
+import { els } from './dom.js';
 
 let dragStart = null;
 let mode = null;
@@ -16,8 +15,7 @@ let targetAlreadySelectedAtStart = false;
 let targetIdAtMouseDown = null;
 let hasMovedDuringDrag = false;
 
-export function initInteractions(_els) {
-    els = _els;
+export function initInteractions() {
 
     els.nodesLayer.addEventListener('click', e => {
         const checkboxWrapper = e.target.closest('.todo-checkbox-wrapper');
