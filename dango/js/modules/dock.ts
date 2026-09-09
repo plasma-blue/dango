@@ -323,9 +323,6 @@ export function toggleFloatingDock(forceVisible?: boolean): void {
     state.settings.hideToolbar = shouldHide;
     localStorage.setItem('cc-hide-toolbar', String(shouldHide));
 
-    const checkEl = document.getElementById('check-hide-toolbar') as HTMLInputElement | null;
-    if (checkEl) checkEl.checked = shouldHide;
-
     if (!shouldHide && !isPresentationModeActive()) {
         container.classList.remove('hidden-dock');
         updateFloatingDock(true);

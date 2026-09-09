@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Keyboard-Centric Floating Dock**: Removed the "Hide floating toolbar" checkbox and its GitHub Star Easter egg unlock gating from the Settings modal. Floating dock visibility is now dedicated to keyboard power-users via shortcut (`\`), preserving a clean settings interface.
+- **Help Modal Page 4**: Expanded the shortcut help modal with a 4th page dedicated to canvas controls and core keyboard flows: toggle floating dock (`\`), select all nodes (`Ctrl+A`), zoom/reset view (`Ctrl+= / - / 0`), edit selected node (`Enter`), and deselect/exit (`Esc`). Updated pager dot navigation and bilingual (zh/en) localization.
+
 ### Fixed
 - **Shift+Enter Trailing Newline & Enter-Enter Truncation**: Resolved an issue where pressing `Shift+Enter` at the end of multiline input produced an extra newline upon saving, and subsequent unmodified edit cycles ("Enter then Enter") repeatedly stripped trailing newlines. Introduced an edit mutation guard (`hasModified`) to guarantee unmodified exits preserve the original text strictly invariant, eliminated the ephemeral `hadExplicitShiftEnter` flag, and normalized the removal of browser caret placeholder breaks across Chromium, Gecko (Firefox), and WebKit.
 
 ### Added
 - **Multiline Edit Lifecycle Test Suite**: Added `test/shift_enter_lifecycle.test.ts` verifying trailing newline preservation from `Shift+Enter`, Enter-Enter no-op invariance across multiple consecutive cycles, and editing updates.
+- **Floating Dock & Help Modal Regression Tests**: Updated `test/dock.test.ts` to assert removal of the settings checkbox, verify 4-page structure and pager dot alignment in the Help modal, and cover bilingual localization.
 
 ## [1.1.8] - 2026-09-06
 

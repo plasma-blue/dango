@@ -104,10 +104,6 @@
                     </button>
                     <!-- 设置弹窗 -->
                     <div id="settings-modal" class="help-modal-style">
-                        <div class="settings-item hidden" id="settings-hide-toolbar-item">
-                            <span data-i18n="settings_hide_toolbar">隐藏悬浮栏</span>
-                            <input type="checkbox" id="check-hide-toolbar">
-                        </div>
                         <div class="settings-item">
                             <span data-i18n="settings_hide_grid">隐藏网格点</span>
                             <input type="checkbox" id="check-hide-grid">
@@ -202,6 +198,24 @@
                                     <span class="help-keys">Arrow</span>
                                 </div>
                             </div>
+
+                            <div class="help-page" data-help-page="3">
+                                <div class="help-row"><span class="help-desc" data-i18n="help_toggle_dock">显示 / 隐藏悬浮栏</span>
+                                    <span class="help-keys">\</span>
+                                </div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_select_all">全选所有节点</span>
+                                    <span class="help-keys">Ctrl + A</span>
+                                </div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_zoom_canvas">画布缩放 / 重置</span>
+                                    <span class="help-keys">Ctrl + = / - / 0</span>
+                                </div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_edit_node">编辑选中节点</span>
+                                    <span class="help-keys">Enter</span>
+                                </div>
+                                <div class="help-row"><span class="help-desc" data-i18n="help_cancel_exit">取消选择 / 退出</span>
+                                    <span class="help-keys">Esc</span>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="help-pager" aria-label="Help Pages">
@@ -211,6 +225,8 @@
                                 aria-label="Page 2"></button>
                             <button type="button" class="help-page-dot" data-help-page-target="2"
                                 aria-label="Page 3"></button>
+                            <button type="button" class="help-page-dot" data-help-page-target="3"
+                                aria-label="Page 4"></button>
                         </div>
 
                         <div class="help-footer-row">

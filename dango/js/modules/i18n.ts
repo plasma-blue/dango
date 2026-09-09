@@ -125,7 +125,12 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         toast_feedback_btn: "连接想法",
         safety_url: "https://blog.dango.ink/why-dango-is-secure",
         safety_tooltip: "为什么 Dango 是安全的？",
-        extrude_ghost_text: "✨ 释放落子新想法"
+        extrude_ghost_text: "✨ 释放落子新想法",
+        help_toggle_dock: "显示 / 隐藏悬浮栏",
+        help_select_all: "全选所有节点",
+        help_zoom_canvas: "画布缩放 / 重置",
+        help_edit_node: "编辑选中节点",
+        help_cancel_exit: "取消选择 / 退出"
     },
     en: {
         page_title: "Dango: Drop a nugget, get organized",
@@ -247,7 +252,12 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         toast_feedback_btn: "Link Ideas",
         safety_url: "https://blog.dango.ink/why-dango-is-secure-en",
         safety_tooltip: "Why is Dango secure?",
-        extrude_ghost_text: "✨ Release to drop new idea"
+        extrude_ghost_text: "✨ Release to drop new idea",
+        help_toggle_dock: "Show / Hide Dock",
+        help_select_all: "Select All Nodes",
+        help_zoom_canvas: "Zoom / Reset View",
+        help_edit_node: "Edit Selected Node",
+        help_cancel_exit: "Deselect / Exit"
     }
 };
 

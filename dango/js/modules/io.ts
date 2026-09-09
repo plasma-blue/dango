@@ -790,8 +790,6 @@ export function applyUrlQueryOverrides(): void {
         state.settings.hideToolbar = !show;
         state.explicitToolbar = true;
         if (typeof document !== 'undefined') {
-            const check = document.getElementById('check-hide-toolbar') as HTMLInputElement | null;
-            if (check) check.checked = !show;
             if (show && state.isEmbed) {
                 document.body.classList.add('embed-show-toolbar');
             } else {

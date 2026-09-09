@@ -265,19 +265,55 @@ describe('Floating Action Dock (底部悬浮快捷控制器)', () => {
         expect(state.groups.length).toBe(0);
     });
 
-    it('Hides hideToolbar setting until unlocked via Star or existing setting', () => {
-        const { isToolbarUnlocked } = require('../dango/js/modules/ui.js');
-        delete mockStorage['cc-bg-unlocked'];
+    it('toggleFloatingDock toggles state.settings.hideToolbar and persists to localStorage', () => {
+        const { toggleFloatingDock } = require('../dango/js/modules/dock.js');
         state.settings.hideToolbar = false;
-        expect(isToolbarUnlocked(state)).toBe(false);
+        toggleFloatingDock();
+        expect(state.settings.hideToolbar).toBe(true);
+        expect(mockStorage['cc-hide-toolbar']).toBe('true');
 
-        // When user has clicked star
-        mockStorage['cc-bg-unlocked'] = 'true';
-        expect(isToolbarUnlocked(state)).toBe(true);
+        toggleFloatingDock();
+        expect(state.settings.hideToolbar).toBe(false);
+        expect(mockStorage['cc-hide-toolbar']).toBe('false');
+    });
 
-        // When user already has hideToolbar enabled in canvas file / settings
-        delete mockStorage['cc-bg-unlocked'];
-        state.settings.hideToolbar = true;
-        expect(isToolbarUnlocked(state)).toBe(true);
+    it('Settings modal no longer contains hideToolbar checkbox, and Help modal contains page 4 with Backslash shortcut', () => {
+        const { readFileSync } = require('fs');
+        const { resolve } = require('path');
+        const html = readFileSync(resolve(__dirname, '../dango/index.html'), 'utf-8');
+
+        // 1. settings modal does not have check-hide-toolbar or settings-hide-toolbar-item
+        expect(html).not.toContain('id="check-hide-toolbar"');
+        expect(html).not.toContain('id="settings-hide-toolbar-item"');
+
+        // 2. help pages contain 4 pages and 4 dots
+        const pageMatches = html.match(/data-help-page="\d+"/g) || [];
+        expect(pageMatches.length).toBe(4);
+
+        const dotMatches = html.match(/class="help-page-dot/g) || [];
+        expect(dotMatches.length).toBe(4);
+
+        // 3. page 4 contains Backslash toggle shortcut
+        expect(html).toContain('data-i18n="help_toggle_dock"');
+        expect(html).toContain('<span class="help-keys">\\</span>');
+
+        // 4. i18n covers all new keys in both languages
+        const { getTexts, toggleLang, getCurrentLang } = require('../dango/js/modules/i18n.js');
+        if (getCurrentLang() !== 'zh') toggleLang();
+        const zh = getTexts();
+        expect(zh.help_toggle_dock).toBe('显示 / 隐藏悬浮栏');
+        expect(zh.help_select_all).toBe('全选所有节点');
+        expect(zh.help_zoom_canvas).toBe('画布缩放 / 重置');
+        expect(zh.help_edit_node).toBe('编辑选中节点');
+        expect(zh.help_cancel_exit).toBe('取消选择 / 退出');
+
+        toggleLang(); // switch to en
+        const en = getTexts();
+        expect(en.help_toggle_dock).toBe('Show / Hide Dock');
+        expect(en.help_select_all).toBe('Select All Nodes');
+        expect(en.help_zoom_canvas).toBe('Zoom / Reset View');
+        expect(en.help_edit_node).toBe('Edit Selected Node');
+        expect(en.help_cancel_exit).toBe('Deselect / Exit');
+        toggleLang(); // restore to zh
     });
 });

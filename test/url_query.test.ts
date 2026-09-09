@@ -73,7 +73,6 @@ describe('URL Query Parameter Overrides & Long-term Feedback System', () => {
 
         expect(state.settings.hideToolbar).toBe(true);
         expect(state.explicitToolbar).toBe(true);
-        expect(mockElements['check-hide-toolbar'].checked).toBe(true);
     });
 
     it('forces hideToolbar=false when ?toolbar=1 in embed mode and adds embed-show-toolbar class', () => {
