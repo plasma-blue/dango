@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.9] - 2026-09-09
+
 ### Changed
 - **Keyboard-Centric Floating Dock**: Removed the "Hide floating toolbar" checkbox and its GitHub Star Easter egg unlock gating from the Settings modal. Floating dock visibility is now dedicated to keyboard power-users via shortcut (`\`), preserving a clean settings interface.
 - **Help Modal Page 4**: Expanded the shortcut help modal with a 4th page dedicated to canvas controls and core keyboard flows: toggle floating dock (`\`), select all nodes (`Ctrl+A`), zoom/reset view (`Ctrl+= / - / 0`), edit selected node (`Enter`), and deselect/exit (`Esc`). Updated pager dot navigation and bilingual (zh/en) localization.
