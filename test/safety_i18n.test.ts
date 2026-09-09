@@ -24,6 +24,58 @@ describe('Safety Shield Multi-Language Link & Tooltip Localization', () => {
         expect(getCurrentLang()).toBe('zh');
     });
 
+    it('provides correct Chinese and English privacy and terms URLs and updates data-i18n-href DOM anchors', () => {
+        const { updateI18n } = require('../dango/js/modules/i18n.js');
+        const { readFileSync } = require('fs');
+        const { resolve } = require('path');
+
+        // Check index.html markup
+        const html = readFileSync(resolve(__dirname, '../dango/index.html'), 'utf-8');
+        expect(html).toContain('id="link-privacy"');
+        expect(html).toContain('id="link-terms"');
+        expect(html).toContain('data-i18n-href="privacy_url"');
+        expect(html).toContain('data-i18n-href="terms_url"');
+        expect(html).not.toContain('<a href="#" target="_blank" rel="noopener noreferrer" class="about-link-item"');
+
+        // Test Chinese URLs
+        if (getCurrentLang() !== 'zh') toggleLang();
+        const zh = getTexts();
+        expect(zh.privacy_url).toBe('https://blog.dango.ink/privacy');
+        expect(zh.terms_url).toBe('https://blog.dango.ink/terms');
+
+        // Mock anchor DOM for updateI18n
+        const mockAnchors: any[] = [
+            { getAttribute: (attr: string) => attr === 'data-i18n-href' ? 'privacy_url' : null, href: '' },
+            { getAttribute: (attr: string) => attr === 'data-i18n-href' ? 'terms_url' : null, href: '' }
+        ];
+        (globalThis as any).document = {
+            title: '',
+            querySelectorAll: (sel: string) => {
+                if (sel === '[data-i18n-href]') return mockAnchors;
+                return [];
+            },
+            querySelector: () => null,
+            getElementById: () => null
+        };
+
+        updateI18n();
+        expect(mockAnchors[0].href).toBe('https://blog.dango.ink/privacy');
+        expect(mockAnchors[1].href).toBe('https://blog.dango.ink/terms');
+
+        // Test English URLs
+        toggleLang();
+        expect(getCurrentLang()).toBe('en');
+        const en = getTexts();
+        expect(en.privacy_url).toBe('https://blog.dango.ink/privacy-en');
+        expect(en.terms_url).toBe('https://blog.dango.ink/terms-en');
+
+        updateI18n();
+        expect(mockAnchors[0].href).toBe('https://blog.dango.ink/privacy-en');
+        expect(mockAnchors[1].href).toBe('https://blog.dango.ink/terms-en');
+
+        toggleLang(); // restore zh
+    });
+
     it('synchronizes body.has-selection on dock state updates for mobile safety shield avoidance', () => {
         const classes = new Set<string>();
         const mockBody = {

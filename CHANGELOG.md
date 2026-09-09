@@ -12,13 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Help Modal Page 4**: Expanded the shortcut help modal with a 4th page dedicated to canvas controls and core keyboard flows: toggle floating dock (`\`), select all nodes (`Ctrl+A`), zoom/reset view (`Ctrl+= / - / 0`), edit selected node (`Enter`), and deselect/exit (`Esc`). Updated pager dot navigation and bilingual (zh/en) localization.
 - **Empty Board Prompt**: Aligned empty state copywriting from "画布" to "画板" ("输入第一个想法，开启你的画板") across HTML markup, Chinese localization, and product specifications.
 - **Specification Sync (`SPEC.md`)**: Synchronized product specifications to reflect toolbar setting removal, pure keyboard dock shortcuts, 4th-page help modal expansion, and empty board prompt adjustments.
+- **Bilingual Legal Links & Dynamic Anchor Sync**: Replaced placeholder `#` links in the About modal with official bilingual links (`/privacy`, `/terms` for Chinese and `/privacy-en`, `/terms-en` for English), backed by generic `data-i18n-href` auto-synchronization in `updateI18n()`.
 
 ### Fixed
 - **Shift+Enter Trailing Newline & Enter-Enter Truncation**: Resolved an issue where pressing `Shift+Enter` at the end of multiline input produced an extra newline upon saving, and subsequent unmodified edit cycles ("Enter then Enter") repeatedly stripped trailing newlines. Introduced an edit mutation guard (`hasModified`) to guarantee unmodified exits preserve the original text strictly invariant, eliminated the ephemeral `hadExplicitShiftEnter` flag, and normalized the removal of browser caret placeholder breaks across Chromium, Gecko (Firefox), and WebKit.
 
 ### Added
+- **Legal Compliance & Disclaimer Documents**: Authored comprehensive bilingual Privacy Policy and Terms of Service documents (`docs/legal/privacy.md`, `privacy-en.md`, `terms.md`, `terms-en.md`) establishing zero-server storage, Cloudflare network infrastructure boundaries, user content sole liability, and technical neutrality disclaimers.
 - **Multiline Edit Lifecycle Test Suite**: Added `test/shift_enter_lifecycle.test.ts` verifying trailing newline preservation from `Shift+Enter`, Enter-Enter no-op invariance across multiple consecutive cycles, and editing updates.
 - **Floating Dock & Help Modal Regression Tests**: Updated `test/dock.test.ts` to assert removal of the settings checkbox, verify 4-page structure and pager dot alignment in the Help modal, and cover bilingual localization.
+- **Legal Links & Anchor i18n Regression Tests**: Extended `test/safety_i18n.test.ts` to verify bilingual privacy and terms URL resolution and `data-i18n-href` DOM synchronization.
 
 ## [1.1.8] - 2026-09-06
 

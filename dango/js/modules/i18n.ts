@@ -63,6 +63,8 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         blog_link: "开发博客",
         privacy_policy: "隐私声明",
         terms_of_service: "用户条款",
+        privacy_url: "https://blog.dango.ink/privacy",
+        terms_url: "https://blog.dango.ink/terms",
         buy_coffee: "请喝咖啡",
         toast_copy_link_success: "链接已复制 ✨",
         help_spotlight: "聚光灯",
@@ -190,6 +192,8 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         blog_link: "Dev Blog",
         privacy_policy: "Privacy Policy",
         terms_of_service: "Terms of Service",
+        privacy_url: "https://blog.dango.ink/privacy-en",
+        terms_url: "https://blog.dango.ink/terms-en",
         buy_coffee: "Buy me a coffee",
         toast_copy_link_success: "Link copied ✨",
         help_spotlight: "Spotlight",
@@ -325,6 +329,10 @@ export function updateI18n(): void {
     document.querySelectorAll<HTMLInputElement>('[data-i18n-placeholder]').forEach(el => {
         const key = el.getAttribute('data-i18n-placeholder');
         if (key && texts[key]) el.placeholder = texts[key];
+    });
+    document.querySelectorAll<HTMLAnchorElement>('[data-i18n-href]').forEach(el => {
+        const key = el.getAttribute('data-i18n-href');
+        if (key && texts[key]) el.href = texts[key];
     });
     const btnLang = document.getElementById('btn-lang');
     if (btnLang) btnLang.innerText = texts['lang_toggle'];
