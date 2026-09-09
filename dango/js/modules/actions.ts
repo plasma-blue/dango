@@ -55,13 +55,22 @@ export function createNodesFromInput(text?: string): void {
         let currentRow: string[] = [];
         let currentItem = "";
         let inQuotes = false;
+        let inCodeBlock = false;
         let quoteChar = "";
         const openQuotes = ['"', "'", '“', '‘'];
         const closeQuotes: Record<string, string> = { '"': '"', "'": "'", '“': '”', '‘': '’' };
 
         for (let i = 0; i < str.length; i++) {
+            if (!inQuotes && str.startsWith('```', i)) {
+                inCodeBlock = !inCodeBlock;
+                currentItem += '```';
+                i += 2;
+                continue;
+            }
             const char = str[i];
-            if (inQuotes) {
+            if (inCodeBlock) {
+                currentItem += char;
+            } else if (inQuotes) {
                 if (char === quoteChar) {
                     inQuotes = false;
                     quoteChar = "";

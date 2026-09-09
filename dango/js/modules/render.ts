@@ -236,9 +236,12 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
         return;
     }
 
-    const imageData = parseImageMarkdown(node.text);
+    const rawText = node.text || '';
+    const trimmedText = rawText.trim();
+    const imageData = parseImageMarkdown(rawText);
     const isImage = !!imageData;
-    const isLink = !isImage && isUrl(node.text);
+    const isLink = !isImage && isUrl(rawText);
+    const isCode = !isImage && trimmedText.length >= 6 && trimmedText.startsWith('```') && trimmedText.endsWith('```');
 
     if (isImage && imageData) {
         el.classList.remove('is-link');
@@ -338,14 +341,12 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
     } else {
         if (!isImage) {
             el.classList.remove('is-link');
-            const trimmedText = (node.text || '').trim();
-            const isCode = trimmedText.startsWith('```') && trimmedText.endsWith('```');
             
-            if (el.dataset.lastText !== (node.text || '')) {
+            if (el.dataset.lastText !== rawText) {
                 if (isCode) {
                     renderCodeBlock(el, trimmedText);
                 } else {
-                    const newHtml = parseMarkdown(node.text || '');
+                    const newHtml = parseMarkdown(rawText);
                     setSafeHTML(el, newHtml);
                     const hasTodo = Boolean(el.querySelector?.('.todo-item'));
                     if (typeof el.classList?.toggle === 'function') {
@@ -355,7 +356,7 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
                         else el.classList.remove('has-todo');
                     }
                 }
-                el.dataset.lastText = node.text || '';
+                el.dataset.lastText = rawText;
                 el.style.width = '';
                 el.style.height = '';
                 node.w = 0;
@@ -390,7 +391,7 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
     if (isLink) classes.push('is-link');
     if (isSelected) classes.push('selected');
     if (isFound) classes.push('search-found');
-    const text = node.text || '';
+    const text = rawText;
     if (text.replace(/\r?\n$/, '').includes('\n')) classes.push('has-multiline');
     
     if (text.startsWith('### ')) classes.push('node-h3');
@@ -398,7 +399,7 @@ export function renderNode(el: HTMLElement, node: CanvasNode): void {
     else if (text.startsWith('# ')) classes.push('node-h1');
     
     if (text.startsWith('//')) classes.push('node-comment');
-    if (text.startsWith('```') && text.endsWith('```')) classes.push('node-code');
+    if (isCode) classes.push('node-code');
 
     if (isItemGhostedInTagging(node)) {
         classes.push('tagging-ghost');
