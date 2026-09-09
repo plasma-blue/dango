@@ -174,6 +174,7 @@ function forceFinishActiveEdit(): void {
         const node = state.nodes.find(n => n.id === nodeId);
         if (node) {
             let newText = rawInnerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
+            newText = newText.replace(/\r?\n$/, '');
             newText = normalizeChineseMarkdownPrefix(newText);
             if (!newText.trim()) {
                 state.nodes = state.nodes.filter(n => n.id !== node.id);
@@ -1102,7 +1103,9 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
         nodeEl.addEventListener('compositionstart', handleCompositionStart);
         nodeEl.addEventListener('compositionend', handleCompositionEnd);
 
+        let hasModified = false;
         const handleInput = () => {
+            hasModified = true;
             if (isComposing) return;
             const currentInnerText = nodeEl.innerText;
             const rawText = currentInnerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
@@ -1166,7 +1169,6 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
             sel.addRange(range);
         });
 
-        let hadExplicitShiftEnter = false;
         let finished = false;
         const finishEdit = () => {
             if (finished) return;
@@ -1183,11 +1185,15 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
             nodeEl.removeEventListener('input', handleInput);
             const sel = window.getSelection();
             if (sel) sel.removeAllRanges();
-            let newText = rawInnerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
-            if (!hadExplicitShiftEnter) {
+
+            let newText: string;
+            if (!hasModified) {
+                newText = originalText;
+            } else {
+                newText = rawInnerText.replace(/\u00a0/g, ' ').replace(/\u200B/g, '');
                 newText = newText.replace(/\r?\n$/, '');
+                newText = normalizeChineseMarkdownPrefix(newText);
             }
-            newText = normalizeChineseMarkdownPrefix(newText);
             
             if (!newText.trim()) {
                 state.nodes = state.nodes.filter(n => n.id !== node.id);
@@ -1205,6 +1211,7 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
         activeEditFinish = finishEdit;
         nodeEl.onblur = finishEdit;
         nodeEl.onpaste = (ev: ClipboardEvent) => {
+            hasModified = true;
             ev.preventDefault();
             const text = ev.clipboardData?.getData('text/plain') || '';
             let success = false;
@@ -1231,9 +1238,6 @@ export function handleNodeEdit(nodeEl: HTMLElement, force = false): void {
         nodeEl.onkeydown = (ev: KeyboardEvent) => {
             if (ev.isComposing || ev.keyCode === 229) {
                 return;
-            }
-            if (ev.key === 'Enter' && ev.shiftKey) {
-                hadExplicitShiftEnter = true;
             }
             if (ev.key === 'Enter' && !ev.shiftKey) {
                 ev.preventDefault();

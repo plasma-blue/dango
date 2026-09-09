@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Shift+Enter Trailing Newline & Enter-Enter Truncation**: Resolved an issue where pressing `Shift+Enter` at the end of multiline input produced an extra newline upon saving, and subsequent unmodified edit cycles ("Enter then Enter") repeatedly stripped trailing newlines. Introduced an edit mutation guard (`hasModified`) to guarantee unmodified exits preserve the original text strictly invariant, eliminated the ephemeral `hadExplicitShiftEnter` flag, and normalized the removal of browser caret placeholder breaks across Chromium, Gecko (Firefox), and WebKit.
+
+### Added
+- **Multiline Edit Lifecycle Test Suite**: Added `test/shift_enter_lifecycle.test.ts` verifying trailing newline preservation from `Shift+Enter`, Enter-Enter no-op invariance across multiple consecutive cycles, and editing updates.
+
 ## [1.1.8] - 2026-09-06
 
 ### Changed
