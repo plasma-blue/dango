@@ -32,7 +32,7 @@ const TRANSLATIONS: Record<LangCode, Record<string, string>> = {
         safety_tooltip: "为什么团子画板是安全的？",
         settings_alt_as_ctrl: "Alt 兼任 Ctrl",
         settings_hand_drawn: "手写风格",
-        empty_prompt: "输入想法，开启你的画布 ✨",
+        empty_prompt: "输入想法，开启你的画板 ✨",
         toast_cleared: "画布已清空",
         toast_imported: "画布已导入",
         toast_undo: "撤销",

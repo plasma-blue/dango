@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Keyboard-Centric Floating Dock**: Removed the "Hide floating toolbar" checkbox and its GitHub Star Easter egg unlock gating from the Settings modal. Floating dock visibility is now dedicated to keyboard power-users via shortcut (`\`), preserving a clean settings interface.
 - **Help Modal Page 4**: Expanded the shortcut help modal with a 4th page dedicated to canvas controls and core keyboard flows: toggle floating dock (`\`), select all nodes (`Ctrl+A`), zoom/reset view (`Ctrl+= / - / 0`), edit selected node (`Enter`), and deselect/exit (`Esc`). Updated pager dot navigation and bilingual (zh/en) localization.
+- **Empty Board Prompt**: Aligned empty state copywriting from "画布" to "画板" ("输入第一个想法，开启你的画板") across HTML markup, Chinese localization, and product specifications.
+- **Specification Sync (`SPEC.md`)**: Synchronized product specifications to reflect toolbar setting removal, pure keyboard dock shortcuts, 4th-page help modal expansion, and empty board prompt adjustments.
 
 ### Fixed
 - **Shift+Enter Trailing Newline & Enter-Enter Truncation**: Resolved an issue where pressing `Shift+Enter` at the end of multiline input produced an extra newline upon saving, and subsequent unmodified edit cycles ("Enter then Enter") repeatedly stripped trailing newlines. Introduced an edit mutation guard (`hasModified`) to guarantee unmodified exits preserve the original text strictly invariant, eliminated the ephemeral `hadExplicitShiftEnter` flag, and normalized the removal of browser caret placeholder breaks across Chromium, Gecko (Firefox), and WebKit.
